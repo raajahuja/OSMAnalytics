@@ -25,6 +25,7 @@ type Freshness = {
   stale: number;
   recent: number;
   medianEdited: number | null;
+  sample: number | null;
   averageVersion: number | null;
   maxVersion: number;
   years: { year: number; objects: number }[];
@@ -309,6 +310,13 @@ export default function AnalyticsFreshness({
       {!data && !error && (
         <p className="ax-empty" role="status">
           Loading freshness…
+        </p>
+      )}
+      {data && !empty && data.sample && (
+        <p className="ax-freshness-sample" role="note">
+          Estimated from a fixed sample of {count(data.sample)} of these
+          objects, since the selection is too large to read in full. Counts
+          are scaled up, and the lists below come from the sample.
         </p>
       )}
       {data && !empty && (

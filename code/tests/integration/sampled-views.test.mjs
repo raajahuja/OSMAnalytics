@@ -2,7 +2,7 @@
 // fixture and require exactly the same answers as the normal query.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildFixture, startServer } from "../helpers.mjs";
+import { buildFixture, removeFixture, startServer } from "../helpers.mjs";
 
 const request = async (app, path) => {
   const response = await fetch(app.base + path);
@@ -63,5 +63,50 @@ test("sampled views give the same answers as the normal query", async () => {
   } finally {
     await normal.stop();
     await sampled.stop();
+  }
+});
+
+test("every object in sample order matches the sorted query", async () => {
+  const { openForBuild, everythingSampleIds } = await import(
+    "../../server/analytics.mjs"
+  );
+  const output = buildFixture();
+  const { db, dataset } = openForBuild(output + "/analytics/LU.sqlite");
+  try {
+    const [w, s, e, n] = dataset.areas[0].bounds;
+    const views = [
+      [true, [w - 1, s - 1, e + 1, n + 1]],
+      [false, [w, s, (w + e) / 2, n]],
+    ];
+    let compared = 0;
+    for (const kind of ["all", "node", "way", "relation"])
+      for (const areaIndex of [0, 1])
+        for (const [wholeArea, [west, south, east, north]] of views) {
+          const scope = { kind, areaIndex, rules: [], everything: true };
+          const ids = everythingSampleIds(db, scope, {
+            wholeArea,
+            viewShare: 0.5,
+            east,
+            west,
+            north,
+            south,
+          });
+          const expected = db
+            .prepare(
+              "SELECT m.fid FROM map_bounds m JOIN map_features f ON f.fid=m.fid " +
+                "WHERE m.west<=? AND m.east>=? AND m.south<=? AND m.north>=? " +
+                "AND (?='all' OR f.kind=?) AND (?=0 OR EXISTS (SELECT 1 FROM " +
+                "feature_regions r WHERE r.fid=m.fid AND r.region=?)) " +
+                "ORDER BY ((m.fid * 2654435761) & 2147483647) LIMIT 1201",
+            )
+            .all(east, west, north, south, kind, kind, areaIndex, areaIndex - 1)
+            .map(({ fid }) => fid);
+          assert.deepEqual(ids, expected, `${kind} ${areaIndex} ${wholeArea}`);
+          if (expected.length) compared++;
+        }
+    assert.ok(compared >= 8, String(compared));
+  } finally {
+    db.close();
+    removeFixture(output);
   }
 });

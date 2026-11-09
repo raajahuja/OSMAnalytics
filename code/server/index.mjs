@@ -116,13 +116,23 @@ function serveTiles(req, res, url) {
       ? "public, max-age=31536000, immutable"
       : "public, max-age=60",
   };
-  const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range ?? "");
-  const start = range ? Number(range[1]) : 0;
+  // "bytes=a-b", "bytes=a-" or the suffix form "bytes=-n" (the last n bytes).
+  const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
+  const suffix = range && !range[1];
+  if (suffix && !range[2]) {
+    res.writeHead(416, { "Content-Range": "bytes */" + info.size });
+    return res.end();
+  }
+  const start = !range
+    ? 0
+    : suffix
+      ? Math.max(0, info.size - Number(range[2]))
+      : Number(range[1]);
   const end = Math.min(
-    range?.[2] ? Number(range[2]) : info.size - 1,
+    range?.[2] && !suffix ? Number(range[2]) : info.size - 1,
     info.size - 1,
   );
-  if (range && start > end) {
+  if (range && (start > end || (suffix && Number(range[2]) === 0))) {
     res.writeHead(416, { "Content-Range": "bytes */" + info.size });
     return res.end();
   }

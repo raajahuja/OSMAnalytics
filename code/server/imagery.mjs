@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 const origin =
@@ -40,7 +40,16 @@ async function getTile(path, z, x, y) {
   if (tile.length > 1024 * 1024 || tile[0] !== 0xff || tile[1] !== 0xd8)
     throw Error("Invalid imagery tile");
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, tile);
+  // Write to a temporary file and rename it, so a crash never leaves a
+  // half-written tile in the cache.
+  const temporary = path + "." + process.pid + ".partial";
+  try {
+    await writeFile(temporary, tile);
+    await rename(temporary, path);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
   return tile;
 }
 

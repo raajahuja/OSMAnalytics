@@ -79,6 +79,45 @@ test("multi-key selections count each object once", async () => {
   assert.equal((await get(`filters=${filters}&match=all`)).objects, 1);
 });
 
+test("a combined selection compares areas and years like a single key", async () => {
+  const filters = encodeURIComponent(
+    JSON.stringify([
+      { key: "highway", values: [] },
+      { key: "landuse", values: [] },
+    ]),
+  );
+  const combined = await get(`filters=${filters}`);
+  const single = await get("key=highway");
+  assert.equal(combined.objects, single.objects + 1);
+  assert.equal(combined.sample, null);
+  const total = (body) => body.years.reduce((sum, { objects }) => sum + objects, 0);
+  assert.equal(total(combined), combined.objects);
+  const area = Object.fromEntries(combined.regions.map((r) => [r.id, r.objects]));
+  assert.ok(area.C01 >= 7);
+});
+
+test("a large combined selection is estimated from a labelled sample", async () => {
+  const sampled = await startServer({
+    output,
+    env: { WAYFINDER_FRESHNESS_SAMPLE: "3" },
+  });
+  try {
+    const filters = encodeURIComponent(
+      JSON.stringify([
+        { key: "highway", values: [] },
+        { key: "landuse", values: [] },
+      ]),
+    );
+    const { body } = await sampled.get(api + "?filters=" + filters);
+    // The hash cut keeps about, not exactly, the requested number.
+    assert.ok(body.sample > 0 && body.sample < 8, String(body.sample));
+    // Counts are scaled back up to the whole selection of 8 dated objects.
+    assert.equal(body.objects, 8);
+  } finally {
+    await sampled.stop();
+  }
+});
+
 test("no tag filter covers every object", async () => {
   const body = await get("filters=%5B%5D");
   assert.equal(body.objects, 17);

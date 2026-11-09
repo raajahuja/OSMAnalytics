@@ -1,20 +1,10 @@
 {
- "type": "FeatureCollection",
- "features": [
-  {
-   "type": "Feature",
-   "geometry": {
-    "type": "Point",
-    "coordinates": [
-     6.25,
-     49.75
-    ]
-   },
-   "properties": {
-    "layer": "place",
-    "name": "Fixtureville",
-    "rank": "town"
-   }
-  }
+ "places": [
+  [
+   "Fixtureville",
+   1,
+   6.25,
+   49.75
+  ]
  ]
 }

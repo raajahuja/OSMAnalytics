@@ -263,3 +263,11 @@
     border-top: 1px solid var(--gs-separator);
   }
 }
+.ax-freshness-sample {
+  margin: 0;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--gs-separator);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}

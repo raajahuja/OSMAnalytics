@@ -10,7 +10,14 @@ import { queryNearby } from "./nearby.mjs";
 import { shiftGeometry, viewportBoxes } from "./antimeridian.mjs";
 import { queryFreshness } from "./freshness.mjs";
 import { decodeGeometry } from "./geometry.mjs";
-import { matchingIds } from "./id-lists.mjs";
+import {
+  KIND_IDS,
+  KIND_LISTS,
+  REGION_LISTS,
+  idList,
+  intersect,
+  matchingIds,
+} from "./id-lists.mjs";
 import { keyName, resolveRule, valueNames } from "./tag-names.mjs";
 import { tagRegions } from "./tag-regions.mjs";
 
@@ -42,21 +49,47 @@ const summary = (db) =>
 
 // Connections stay open between requests, which keeps SQLite's memory-mapped
 // pages and the parsed metadata. A rebuilt database is a new file, so it's
-// picked up by the file check below.
+// picked up by the file check below. Each open country also holds caches
+// (ID lists, place names), so only the most recently used few stay open;
+// one still answering a request is closed once that request ends.
 const openCountries = new Map();
+const openLimit = Math.max(
+  1,
+  Number(process.env.WAYFINDER_OPEN_COUNTRIES) || 3,
+);
+// The country list needs only each file's summary, not an open connection.
+const listedCountries = new Map();
 // Bump when a response changes shape without the database changing.
-const API_VERSION = 1;
+const API_VERSION = 2;
 const SCHEMA = 2;
 const CACHE_FOREVER = "public, max-age=31536000, immutable";
 const CACHE_BRIEFLY = "public, max-age=60";
 
 
+function closeWhenIdle(country) {
+  country.retired = true;
+  if (!country.users) country.db.close();
+}
+
+export function releaseCountry(country) {
+  country.users -= 1;
+  if (country.retired && !country.users) country.db.close();
+}
+
 function openCountry(file) {
   const { ino, mtimeMs, size } = statSync(file);
   const identity = ino + ":" + mtimeMs + ":" + size;
   const open = openCountries.get(file);
-  if (open?.identity === identity) return open;
-  open?.db.close();
+  if (open?.identity === identity) {
+    // Most recently used last, so eviction takes from the front.
+    openCountries.delete(file);
+    openCountries.set(file, open);
+    return open;
+  }
+  if (open) {
+    openCountries.delete(file);
+    closeWhenIdle(open);
+  }
   const db = database(file);
   if (summary(db).schema !== SCHEMA) {
     db.close();
@@ -71,8 +104,39 @@ function openCountry(file) {
     .update([dataset.snapshot, dataset.schema ?? 0, API_VERSION].join("|"))
     .digest("hex")
     .slice(0, 12);
-  const country = { identity, db, dataset };
+  const country = { identity, db, dataset, users: 0, retired: false };
   openCountries.set(file, country);
+  for (const [name, old] of openCountries) {
+    if (openCountries.size <= openLimit) break;
+    openCountries.delete(name);
+    closeWhenIdle(old);
+  }
+  return country;
+}
+
+// A country's entry for the list, read without keeping the file open.
+function listedCountry(file) {
+  const { ino, mtimeMs, size } = statSync(file);
+  const identity = ino + ":" + mtimeMs + ":" + size;
+  const held = listedCountries.get(file);
+  if (held?.identity === identity) return held.country;
+  const open = openCountries.get(file);
+  let country;
+  if (open?.identity === identity) country = open.dataset.country;
+  else {
+    const db = new DatabaseSync(file, { readOnly: true });
+    try {
+      const read = summary(db);
+      if (read.schema !== SCHEMA)
+        throw Object.assign(new Error("Outdated database format."), {
+          outdatedDatabase: true,
+        });
+      country = read.country;
+    } finally {
+      db.close();
+    }
+  }
+  listedCountries.set(file, { identity, country });
   return country;
 }
 
@@ -157,17 +221,36 @@ export function buildScope(db, areaIndex, kind, key, value) {
 }
 
 // Outlines and roads now come from the vector tiles. Place names are kept
-// here because the location search needs the whole list at once.
+// here because the location search needs the whole list at once. A large
+// country has hundreds of thousands of places, so they are sent as compact
+// [name, rank, lon, lat] rows (rank 0 city, 1 town, 2 other), most important
+// first, and the stored document is parsed once per open database.
+const placeRanks = { city: 0, town: 1 };
+const placeLists = new WeakMap();
 function mapPlaces(db) {
-  const document = JSON.parse(
-    db.prepare("SELECT document FROM map_context").get().document,
-  );
-  return {
-    type: "FeatureCollection",
-    features: document.features.filter(
-      ({ properties }) => properties.layer === "place",
-    ),
-  };
+  let body = placeLists.get(db);
+  if (!body) {
+    const round = (value) => Math.round(value * 1e5) / 1e5;
+    const places = JSON.parse(
+      db.prepare("SELECT document FROM map_context").get().document,
+    )
+      .features.filter(
+        ({ properties, geometry }) =>
+          properties.layer === "place" &&
+          properties.name &&
+          geometry?.type === "Point",
+      )
+      .map(({ properties, geometry: { coordinates } }) => [
+        properties.name,
+        placeRanks[properties.rank] ?? 2,
+        round(coordinates[0]),
+        round(coordinates[1]),
+      ])
+      .sort((a, b) => a[1] - b[1]);
+    body = JSON.stringify({ places });
+    placeLists.set(db, body);
+  }
+  return body;
 }
 
 export function viewport(params) {
@@ -391,6 +474,118 @@ const listCheckSize = 20_000;
 // The same order as the sample expression in SQL: only the low bits matter.
 const sampleOf = (fid) => Math.imul(fid, 2654435761 | 0) & 2147483647;
 
+// The sample order is a multiplicative hash of the feature ID, which can be
+// inverted: the ID with sample value v is v times the inverse, modulo 2^31.
+// Walking v upwards visits IDs in sample order with no sorting at all.
+const sampleInverse = (() => {
+  const modulus = 1n << 31n;
+  const factor = 2654435761n % modulus;
+  let inverse = factor; // Newton's method doubles the correct bits each step.
+  for (let step = 0; step < 5; step++)
+    inverse = (inverse * (2n - factor * inverse)) % modulus;
+  return Number(((inverse % modulus) + modulus) % modulus) | 0;
+})();
+const everythingCheckLimit = 250_000;
+const everythingBatch = 4000;
+const highestIds = new WeakMap();
+
+// The first IDs of a sorted list, in sample order, that lie in the view.
+// Instead of sorting the whole list, it takes the IDs below a sample cutoff
+// sized to fill the view, and raises the cutoff only if that falls short.
+function firstInView(db, ids, view, limit) {
+  const inView = view.wholeArea
+    ? null
+    : db.prepare(
+        "SELECT m.fid FROM json_each(?) j CROSS JOIN map_bounds m ON m.fid=j.value " +
+          "WHERE m.west<=? AND m.east>=? AND m.south<=? AND m.north>=?",
+      );
+  const samples = new Int32Array(ids.length);
+  for (let index = 0; index < ids.length; index++) samples[index] = sampleOf(ids[index]);
+  const found = [];
+  const share = view.wholeArea ? 1 : Math.max(view.viewShare, 1e-6);
+  let low = 0;
+  let high = Math.min(2 ** 31, Math.ceil(((2 * limit) / (ids.length * share)) * 2 ** 31));
+  while (found.length < limit && low < 2 ** 31) {
+    const range = [];
+    for (let index = 0; index < ids.length; index++)
+      if (samples[index] >= low && samples[index] < high) range.push(index);
+    range.sort((a, b) => samples[a] - samples[b]);
+    const ordered = range.map((index) => ids[index]);
+    for (let start = 0; start < ordered.length && found.length < limit; start += listCheckSize) {
+      const batch = ordered.slice(start, start + listCheckSize);
+      const seen = inView
+        ? new Set(
+            inView
+              .all(JSON.stringify(batch), view.east, view.west, view.north, view.south)
+              .map(({ fid }) => fid),
+          )
+        : null;
+      for (const fid of batch)
+        if ((!seen || seen.has(fid)) && found.length < limit) found.push(fid);
+    }
+    low = high;
+    high = Math.min(2 ** 31, high * 4);
+  }
+  return found;
+}
+
+// The first objects in sample order for "every object", without sorting the
+// whole country. Returns null when the view is too small a share of the area
+// to fill quickly; the normal spatial query is fast there anyway.
+export function everythingSampleIds(db, scope, view) {
+  if (!view.wholeArea && view.viewShare < 0.05) return null;
+  const limit = featureLimit + 1;
+  // A type or region narrows the walk to its precomputed ID list.
+  if (scope.kind !== "all" || scope.areaIndex > 0) {
+    let ids = null;
+    if (scope.kind !== "all") ids = idList(db, KIND_LISTS, KIND_IDS[scope.kind]);
+    if (scope.areaIndex > 0) {
+      const region = idList(db, REGION_LISTS, scope.areaIndex - 1);
+      ids = ids ? intersect(ids, region) : region;
+    }
+    return firstInView(db, ids, view, limit);
+  }
+  let highest = highestIds.get(db);
+  if (highest === undefined) {
+    highest = db.prepare("SELECT MAX(fid) AS fid FROM map_features").get().fid ?? 0;
+    highestIds.set(db, highest);
+  }
+  const check = view.wholeArea
+    ? null
+    : db.prepare(
+        "SELECT m.fid FROM json_each(?) j CROSS JOIN map_bounds m ON m.fid=j.value " +
+          "WHERE m.west<=? AND m.east>=? AND m.south<=? AND m.north>=?",
+      );
+  const found = [];
+  let checked = 0;
+  let batch = [];
+  const flush = () => {
+    checked += batch.length;
+    const kept = check
+      ? new Set(
+          check
+            .all(JSON.stringify(batch), view.east, view.west, view.north, view.south)
+            .map(({ fid }) => fid),
+        )
+      : null;
+    for (const fid of batch)
+      if ((!kept || kept.has(fid)) && found.length < limit) found.push(fid);
+    batch = [];
+  };
+  // With no view to check, every ID in range is a match.
+  for (let sample = 0; sample <= 2147483647 && found.length < limit; sample++) {
+    const fid = Math.imul(sample, sampleInverse) & 2147483647;
+    if (fid < 1 || fid > highest) continue;
+    batch.push(fid);
+    if (batch.length >= (check ? everythingBatch : limit - found.length)) {
+      if (checked >= everythingCheckLimit) return null;
+      flush();
+    }
+  }
+  if (batch.length) flush();
+  return found;
+}
+
 // "Match all" over common keys can be rare even when each key is huge, which a
 // sampled walk can't find. The ID lists give the exact matches instead.
 function listedMatchIds(db, scope, view) {
@@ -525,8 +720,40 @@ function mapFeatures(db, dataset, params, res) {
     : "";
   const boxConditions = ["m.west<=?", "m.east>=?", "m.south<=?", "m.north>=?"];
   const boxes = viewportBoxes(bounds);
+  const everythingView = (east, west, north, south) => {
+    const width = Math.max(0, Math.min(e, east) - Math.max(w, west));
+    const height = Math.max(0, Math.min(n, north) - Math.max(s, south));
+    const margin = 0.001;
+    return {
+      wholeArea:
+        west <= w - margin &&
+        east >= e + margin &&
+        south <= s - margin &&
+        north >= n + margin,
+      viewShare: (width * height) / ((e - w) * (n - s)),
+      east,
+      west,
+      north,
+      south,
+    };
+  };
   const readBox = ({ west, south, east, north, offset }) => {
     if (scope.everything) {
+      const ids =
+        boxes.length === 1 && e <= 180
+          ? everythingSampleIds(db, scope, everythingView(east, west, north, south))
+          : null;
+      if (ids)
+        return db
+          .prepare(
+            "SELECT '[]' AS tags, " +
+              sampleOrder +
+              " AS sample, f.kind, f.osm_id, f.label, f.geometry " +
+              "FROM json_each(?) j CROSS JOIN map_features f ON f.fid=j.value",
+          )
+          .all(JSON.stringify(ids))
+          .sort((a, b) => a.sample - b.sample)
+          .map((match) => ({ ...match, offset }));
       const filter = scopeFilter(scope, "m.fid");
       return db
         .prepare(
@@ -669,13 +896,34 @@ const isIndexedKey = (db, dataset, key) =>
 export const freshnessRollupName = (areaIndex, kind, key, value) =>
   JSON.stringify([areaIndex, kind, key, value]);
 
+// Above this many matches, Freshness is estimated from a fixed sample.
+const freshnessSampleSize = Number(
+  process.env.WAYFINDER_FRESHNESS_SAMPLE || 250_000,
+);
+
+// Matching IDs from the precomputed lists, thinned to a repeatable sample
+// (the same hash order as the map's) when there are too many to read in time.
+function sampledIds(db, scope, everyRegion) {
+  const ids = matchingIds(db, scope.rules, listScope(scope, everyRegion));
+  if (ids.length <= freshnessSampleSize) return { ids, scale: 1 };
+  const cutoff = Math.floor((freshnessSampleSize / ids.length) * 2147483648);
+  let kept = ids.filter((fid) => sampleOf(fid) < cutoff);
+  // Only a tiny sample size (as in tests) can leave nothing kept.
+  if (!kept.length) kept = ids.subarray(0, freshnessSampleSize);
+  return { ids: kept, scale: kept.length ? ids.length / kept.length : 1 };
+}
+
 export function computeFreshness(db, dataset, scope) {
+  // Grouping map_tags over several big keys is too slow for large countries,
+  // so combined selections use the ID lists instead.
+  const combined =
+    scope.rules.length > 1 || scope.rules.some(({ values }) => values.length > 1);
   return queryFreshness(
     db,
     dataset,
     dataset.areas[scope.areaIndex],
-    matchedObjects(scope),
-    matchedObjects(scope, true),
+    combined ? sampledIds(db, scope, false) : matchedObjects(scope),
+    combined ? sampledIds(db, scope, true) : matchedObjects(scope, true),
   );
 }
 
@@ -777,7 +1025,7 @@ export async function serveAnalytics(
       for (const entry of readdirSync(directory, { withFileTypes: true })) {
         if (!entry.isFile() || !/^[A-Z]{2}\.sqlite$/.test(entry.name)) continue;
         try {
-          countries.push(openCountry(join(directory, entry.name)).dataset.country);
+          countries.push(listedCountry(join(directory, entry.name)));
         } catch (error) {
           // One country waiting for a rebuild shouldn't hide the others.
           if (!error.outdatedDatabase) throw error;
@@ -814,6 +1062,15 @@ export async function serveAnalytics(
       error: "This country's database is out of date and must be rebuilt.",
     });
   }
+  opened.users += 1;
+  try {
+    return await answerCountry(req, res, url, post, object, match, opened);
+  } finally {
+    releaseCountry(opened);
+  }
+}
+
+async function answerCountry(req, res, url, post, object, match, opened) {
   const { db, dataset } = opened;
   res.cacheControl =
     !post && url.searchParams.get("v") === dataset.version
@@ -869,7 +1126,7 @@ export async function serveAnalytics(
           });
     }
     return match[2] === "map"
-      ? json(res, 200, mapPlaces(db))
+      ? rawJson(res, mapPlaces(db))
       : mapFeatures(db, dataset, params, res);
   }
   const region = params.get("region") || "all";

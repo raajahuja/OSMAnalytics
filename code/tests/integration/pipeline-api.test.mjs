@@ -291,11 +291,14 @@ test("oversized POST bodies are refused", async () => {
 
 test("the map endpoint lists only place names", async () => {
   const { body } = await app.get("/api/analytics/LU/map");
-  assert.ok(body.features.length > 0);
-  assert.ok(body.features.every(({ properties }) => properties.layer === "place"));
-  assert.ok(
-    body.features.some(({ properties }) => properties.name === "Fixtureville"),
+  // Compact [name, rank, lon, lat] rows, most important first.
+  assert.deepEqual(Object.keys(body), ["places"]);
+  assert.deepEqual(
+    body.places.find(([name]) => name === "Fixtureville"),
+    ["Fixtureville", 1, 6.25, 49.75],
   );
+  const ranks = body.places.map(([, rank]) => rank);
+  assert.deepEqual(ranks, [...ranks].sort((a, b) => a - b));
 });
 
 test("vector tiles are served in byte ranges", async () => {
@@ -305,8 +308,54 @@ test("vector tiles are served in byte ranges", async () => {
   assert.equal(response.status, 206);
   assert.match(response.headers.get("content-range"), /^bytes 0-6\/\d+$/);
   assert.equal(Buffer.from(await response.arrayBuffer()).toString(), "PMTiles");
+  const whole = await fetch(app.base + "/tiles/LU.pmtiles");
+  const size = Number(whole.headers.get("content-length"));
+  await whole.body.cancel();
+  const tail = await fetch(app.base + "/tiles/LU.pmtiles", {
+    headers: { Range: "bytes=-100" },
+  });
+  assert.equal(tail.status, 206);
+  assert.equal(
+    tail.headers.get("content-range"),
+    `bytes ${size - 100}-${size - 1}/${size}`,
+  );
+  assert.equal((await tail.arrayBuffer()).byteLength, 100);
+  for (const range of ["bytes=-0", "bytes=-"]) {
+    const refused = await fetch(app.base + "/tiles/LU.pmtiles", {
+      headers: { Range: range },
+    });
+    assert.equal(refused.status, 416, range);
+    await refused.body?.cancel();
+  }
   const missing = await fetch(app.base + "/tiles/ZZ.pmtiles");
   assert.equal(missing.status, 404);
   const escape = await fetch(app.base + "/tiles/..%2Fsecret.pmtiles");
   assert.equal(escape.status, 404);
+});
+
+test("switching countries with one kept open gives the same answers", async () => {
+  const limited = await startServer({
+    output,
+    env: { WAYFINDER_OPEN_COUNTRIES: "1" },
+  });
+  try {
+    const paths = [
+      "/api/analytics/LU/tags",
+      "/api/analytics/XX/tags",
+      "/api/analytics/LU/selection?key=highway",
+      "/api/analytics/XX/freshness?filters=%5B%5D",
+    ];
+    const expected = await Promise.all(paths.map(async (path) => (await app.get(path)).body));
+    for (let round = 0; round < 3; round++)
+      for (const [index, path] of paths.entries()) {
+        const { status, body } = await limited.get(path + (path.includes("?") ? "&" : "?") + "r=" + round);
+        assert.equal(status, 200, path);
+        assert.deepEqual(body, expected[index], path);
+      }
+    const { body: countries } = await limited.get("/api/analytics");
+    assert.deepEqual(countries.map(({ id }) => id).sort(), ["LU", "XX"]);
+    assert.ok(limited.alive());
+  } finally {
+    await limited.stop();
+  }
 });

@@ -46,10 +46,11 @@ export async function startServer({
   output,
   production = true,
   entry = "code/server/index.mjs",
+  env: extra = {},
 } = {}) {
   // The dev server also binds port + 1 for hot reload.
   const port = await freePort();
-  const env = { ...process.env, PORT: String(port) };
+  const env = { ...process.env, ...extra, PORT: String(port) };
   if (production) env.NODE_ENV = "production";
   else delete env.NODE_ENV;
   if (output) env.WAYFINDER_OUTPUT = output;

@@ -18,6 +18,31 @@ function gridFor([west, south, east, north]) {
   return { west, south, east, north, latitude, longitude: latitude / cosine };
 }
 
+const batchSize = 20_000;
+
+// The freshness rows of a selection, given either as SQL or as a list of
+// feature IDs (which is read in batches, since it can be very long).
+function* matchedRows(db, scoped, select, joins, grouping = "") {
+  const from =
+    " FROM hits CROSS JOIN feature_freshness a ON a.fid = hits.fid" +
+    joins +
+    " WHERE a.edited IS NOT NULL" +
+    grouping;
+  if (!scoped.ids) {
+    yield* db
+      .prepare(`WITH hits AS MATERIALIZED (${scoped.sql}) ${select}${from}`)
+      .iterate(...scoped.parameters);
+    return;
+  }
+  const statement = db.prepare(
+    `WITH hits AS (SELECT value AS fid FROM json_each(?)) ${select}${from}`,
+  );
+  for (let start = 0; start < scoped.ids.length; start += batchSize)
+    yield* statement.iterate(
+      JSON.stringify(Array.from(scoped.ids.subarray(start, start + batchSize))),
+    );
+}
+
 export function queryFreshness(db, dataset, area, scoped, everyRegion) {
   const parsed = Date.parse(dataset.snapshot) / 1000;
   const snapshot = Number.isFinite(parsed) ? parsed : Date.now() / 1000;
@@ -34,15 +59,12 @@ export function queryFreshness(db, dataset, area, scoped, everyRegion) {
     versions = 0,
     maxVersion = 0;
 
-  const rows = db
-    .prepare(
-      `WITH hits AS MATERIALIZED (${scoped.sql})
-       SELECT a.fid, a.version, a.edited, a.lon, a.lat
-       FROM hits CROSS JOIN feature_freshness a ON a.fid = hits.fid
-       WHERE a.edited IS NOT NULL`,
-    )
-    .iterate(...scoped.parameters);
-  for (const row of rows) {
+  for (const row of matchedRows(
+    db,
+    scoped,
+    "SELECT a.fid, a.version, a.edited, a.lon, a.lat",
+    "",
+  )) {
     const isStale = row.edited < staleBefore;
     edits.push(row.edited);
     stale += isStale;
@@ -88,33 +110,43 @@ export function queryFreshness(db, dataset, area, scoped, everyRegion) {
   };
   const firstYear = Math.min(...years.keys());
   const lastYear = Math.max(...years.keys());
-  const regions = db
-    .prepare(
-      `WITH hits AS MATERIALIZED (${everyRegion.sql})
-       SELECT r.region, COUNT(*) AS objects, SUM(a.edited < ?) AS stale,
-              AVG(a.edited) AS average
-       FROM hits
-       CROSS JOIN feature_freshness a ON a.fid = hits.fid
-       CROSS JOIN feature_regions r ON r.fid = hits.fid
-       WHERE a.edited IS NOT NULL
-       GROUP BY r.region`,
-    )
-    .all(...everyRegion.parameters, staleBefore)
-    .map(({ region, objects, stale: old, average }) => ({
+  const byRegion = new Map();
+  for (const part of matchedRows(
+    db,
+    everyRegion,
+    `SELECT r.region, COUNT(*) AS objects, SUM(a.edited < ${Number(staleBefore)}) AS stale,
+            SUM(a.edited) AS total`,
+    " CROSS JOIN feature_regions r ON r.fid = hits.fid",
+    " GROUP BY r.region",
+  )) {
+    const held = byRegion.get(part.region) ?? { objects: 0, stale: 0, total: 0 };
+    held.objects += part.objects;
+    held.stale += part.stale;
+    held.total += part.total;
+    byRegion.set(part.region, held);
+  }
+  const regionScale = everyRegion.scale ?? 1;
+  const regions = [...byRegion]
+    .map(([region, { objects, stale: old, total }]) => ({
       id: dataset.areas[region + 1].id,
       name: dataset.areas[region + 1].name,
-      objects,
-      stale: old,
-      averageAgeYears: (snapshot - average) / year,
+      objects: Math.round(objects * regionScale),
+      stale: Math.round(old * regionScale),
+      averageAgeYears: (snapshot - total / objects) / year,
     }))
     .sort((a, b) => b.stale / b.objects - a.stale / a.objects);
+  // A sampled answer scales its counts back up to the whole selection.
+  const scale = scoped.scale ?? 1;
+  const scaled = (value) => Math.round(value * scale);
 
   return {
     snapshot: dataset.snapshot,
     staleYears,
-    objects: edits.length,
-    stale,
-    recent,
+    objects: scaled(edits.length),
+    stale: scaled(stale),
+    recent: scaled(recent),
+    // Set when the figures are estimated from a fixed sample of the matches.
+    sample: scoped.ids && scale > 1 ? edits.length : null,
     medianEdited: edits.length ? sorted[Math.floor(edits.length / 2)] : null,
     averageVersion: edits.length ? versions / edits.length : null,
     maxVersion,
@@ -122,7 +154,7 @@ export function queryFreshness(db, dataset, area, scoped, everyRegion) {
     years: edits.length
       ? Array.from({ length: lastYear - firstYear + 1 }, (_, index) => ({
           year: firstYear + index,
-          objects: years.get(firstYear + index) ?? 0,
+          objects: scaled(years.get(firstYear + index) ?? 0),
         }))
       : [],
     regions,
@@ -135,8 +167,8 @@ export function queryFreshness(db, dataset, area, scoped, everyRegion) {
           grid.west + (column + 1) * grid.longitude,
           grid.south + (line + 1) * grid.latitude,
         ],
-        objects,
-        stale: old,
+        objects: scaled(objects),
+        stale: scaled(old),
       })),
     mostEdited: mostEdited.map(listed),
     oldest: oldest.map(listed),

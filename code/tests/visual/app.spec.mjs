@@ -282,14 +282,22 @@ test.describe("desktop interactions @desktop", () => {
     await openCountry(page, "XX");
     await expect(page.getByText("highway=primary")).toBeVisible();
     await openCountry(page, "LU");
-    await expect(page.getByText("highway=service")).toBeVisible();
     await expect(
       page.getByRole("button", { name: /^Tag value: service, 2 objects/ }),
     ).toBeVisible();
   });
 
-  test("a newly chosen key starts on its first value", async ({ page }) => {
+  test("a first key starts on its first value, later keys on all values", async ({
+    page,
+  }) => {
     await page.getByRole("button", { name: /^Tag key:/ }).click();
+    await page.getByRole("checkbox", { name: /^amenity/ }).click();
+    await expect(page.getByText("amenity=*")).toBeVisible();
+    // The value picker describes the key it lists, not another key's value.
+    await expect(
+      page.getByRole("button", { name: /^Tag value: All values/ }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Clear" }).click();
     await page.getByRole("checkbox", { name: /^amenity/ }).click();
     await expect(page.getByText("amenity=cafe")).toBeVisible();
   });

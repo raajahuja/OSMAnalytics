@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -15,7 +16,7 @@ import type {
   Marker,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { labelWidth, rankPriority, visibleLabels } from "./placeLabels";
+import { labelWidth, visibleLabels } from "./placeLabels";
 import { Crosshair, Eye, EyeOff, LocateFixed } from "lucide-react";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import AnalyticsObjectInspector, {
@@ -52,10 +53,8 @@ export type FeatureBounds = [
   north: number,
 ];
 export type TagFilter = { key: string; values: string[] };
-type MapContext = FeatureCollection<
-  Geometry,
-  { layer: string; name?: string; rank?: string }
->;
+// [name, rank, lon, lat], with rank 0 for cities, 1 towns, 2 the rest.
+type MapPlaces = { places: [string, number, number, number][] };
 type MatchingFeatures = FeatureCollection<Geometry, MappedObject> & {
   limited: boolean;
 };
@@ -213,7 +212,7 @@ export default function AnalyticsFeatureMap({
   }>();
   const objectDetails =
     objectResponse?.url === objectUrl ? objectResponse : undefined;
-  const [context, setContext] = useState<MapContext>();
+  const [context, setContext] = useState<MapPlaces>();
   const [{ bbox, zoom }, setViewport] = useState({ bbox: "", zoom: 0 });
   const [contextError, setContextError] = useState("");
   const [basemap, setBasemap] = useState<"street" | "satellite">("street");
@@ -386,19 +385,24 @@ export default function AnalyticsFeatureMap({
     container.addEventListener("gestureend", gestureEnd);
 
     const abort = new AbortController();
+    // Places arrive most important first. A marker is only made once its
+    // place is first shown, since a large country has hundreds of thousands.
     let places: {
-      marker: Marker;
+      name: string;
+      lng: number;
+      lat: number;
       village: boolean;
       width: number;
-      shown: boolean;
+      marker?: Marker;
     }[] = [];
+    let shown = new Set<(typeof places)[number]>();
     const refreshPlaces = () => {
       const showVillages = m.getZoom() >= VILLAGE_ZOOM;
       // Each marker is repositioned on every frame, so only nearby ones exist.
       const view = m.getBounds();
       const marginX = (view.getEast() - view.getWest()) * 0.25;
       const marginY = (view.getNorth() - view.getSouth()) * 0.25;
-      const nearView = ({ lng, lat }: LngLat) =>
+      const nearView = (lng: number, lat: number) =>
         lat >= view.getSouth() - marginY &&
         lat <= view.getNorth() + marginY &&
         [0, 360, -360].some(
@@ -407,43 +411,38 @@ export default function AnalyticsFeatureMap({
             lng + shift <= view.getEast() + marginX,
         );
       const candidates = places.filter(
-        ({ village, marker }) =>
-          (showVillages || !village) && nearView(marker.getLngLat()),
+        ({ village, lng, lat }) => (showVillages || !village) && nearView(lng, lat),
       );
       const fits = visibleLabels(
-        candidates.map(({ marker, width }) => {
-          const { x, y } = m.project(marker.getLngLat());
+        candidates.map(({ lng, lat, width }) => {
+          const { x, y } = m.project([lng, lat]);
           return { x, y, width, height: 16 };
         }),
       );
-      const keep = new Map(candidates.map((place, index) => [place, fits[index]]));
-      for (const place of places) {
-        const show = keep.get(place) ?? false;
-        if (show && !place.shown) place.marker.addTo(m);
-        else if (!show && place.shown) place.marker.remove();
-        place.shown = show;
+      const next = new Set(candidates.filter((_, index) => fits[index]));
+      for (const place of shown) if (!next.has(place)) place.marker?.remove();
+      for (const place of next) {
+        if (shown.has(place)) continue;
+        place.marker ??= new maplibregl.Marker({
+          element: placeLabel(place.name),
+          anchor: "center",
+        }).setLngLat([place.lng, place.lat]);
+        place.marker.addTo(m);
       }
+      shown = next;
     };
     m.on("moveend", refreshPlaces);
-    read<MapContext>("/api/analytics/" + country + "/map", abort.signal)
+    read<MapPlaces>("/api/analytics/" + country + "/map", abort.signal)
       .then((data) => {
         if (abort.signal.aborted) return;
         setContext(data);
-        const ranked: (typeof places)[number][][] = [[], [], []];
-        for (const { properties, geometry } of data.features) {
-          if (properties.layer !== "place" || geometry.type !== "Point") continue;
-          const name = properties.name ?? "";
-          ranked[rankPriority(properties.rank)].push({
-            marker: new maplibregl.Marker({
-              element: placeLabel(name),
-              anchor: "center",
-            }).setLngLat(geometry.coordinates as [number, number]),
-            village: properties.rank === "village",
-            width: labelWidth(name),
-            shown: false,
-          });
-        }
-        places = ranked.flat();
+        places = (data.places ?? []).map(([name, rank, lng, lat]) => ({
+          name,
+          lng,
+          lat,
+          village: rank === 2,
+          width: labelWidth(name),
+        }));
         refreshPlaces();
       })
       .catch((error) => {
@@ -933,24 +932,20 @@ export default function AnalyticsFeatureMap({
 
   const status = response?.query === query ? response : undefined;
   const mapError = (!nearby && status?.error) || contextError;
-  const places =
-    context?.features.flatMap(({ properties, geometry }) => {
-      if (
-        properties.layer !== "place" ||
-        !properties.name ||
-        geometry.type !== "Point"
-      )
-        return [];
-      return [
-        {
-          name: properties.name,
-          coordinates: [
-            geometry.coordinates[1],
-            geometry.coordinates[0],
-          ] as Coordinates,
-        },
-      ];
-    }) ?? [];
+  // The server draws at most a fixed number of objects, so say when that
+  // is a sample rather than every match.
+  const sampleNote =
+    !nearby && !objectsHidden && status?.limited && !status.error
+      ? `Showing a sample of ${status.count.toLocaleString()} of the matching objects in view. Zoom in to see more. Counts in the filters cover every match.`
+      : "";
+  const places = useMemo(
+    () =>
+      context?.places?.map(([name, , lng, lat]) => ({
+        name,
+        coordinates: [lat, lng] as Coordinates,
+      })) ?? [],
+    [context],
+  );
   return (
     <div
       className={
@@ -1100,9 +1095,14 @@ export default function AnalyticsFeatureMap({
           )
         )}
       </div>
-      {(mapError || aerial) && (
+      {(mapError || sampleNote || aerial) && (
         <div className="ax-feature-map-info">
           {mapError && <p role="status">{mapError}</p>}
+          {sampleNote && (
+            <p className="ax-map-sample" role="status">
+              {sampleNote}
+            </p>
+          )}
           {aerial && (
             <>
               <a

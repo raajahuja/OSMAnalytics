@@ -1056,25 +1056,50 @@ export default function Analytics() {
     return () => abort.abort();
   }, [country]);
 
+  // Keys still waiting for their first value, and the country they were
+  // chosen in, so quick clicks or a country change can't overshoot.
+  const pendingKeys = useRef(new Set<string>());
+  const currentCountry = useRef(country);
+  currentCountry.current = country;
+  useEffect(() => pendingKeys.current.clear(), [country]);
   const toggleKey = (key: string) => {
     setAdjustedScope("");
     if (filters.some((rule) => rule.key === key)) {
+      pendingKeys.current.delete(key);
       setFilters((current) => current.filter((rule) => rule.key !== key));
       return;
     }
-    if (filters.length >= 12) return;
-    // A newly chosen key starts on its most common value.
+    if (pendingKeys.current.has(key)) return;
+    if (filters.length + pendingKeys.current.size >= 12) return;
+    // The first key starts on its most common value. Later keys start on all
+    // values, since two most common values rarely occur on one object.
+    if (filters.length || pendingKeys.current.size) {
+      setAllKeys(false);
+      setFilters((current) =>
+        current.length >= 12 || current.some((rule) => rule.key === key)
+          ? current
+          : [...current, { key, values: [] }],
+      );
+      setAnalysisKey(key);
+      return;
+    }
+    const requested = country;
+    pendingKeys.current.add(key);
     firstValue(country, area?.id ?? "all", kind, key, AbortSignal.timeout(8000))
       .catch(() => undefined)
       .then((value) => {
+        if (!pendingKeys.current.delete(key)) return;
+        if (currentCountry.current !== requested) return;
         setAllKeys(false);
         setFilters((current) => {
-          if (current.some((rule) => rule.key === key)) return current;
+          if (current.length >= 12 || current.some((rule) => rule.key === key))
+            return current;
           const chosen = current.reduce(
             (sum, rule) => sum + rule.values.length,
             0,
           );
-          const values = value === undefined || chosen >= 40 ? [] : [value];
+          const values =
+            value === undefined || chosen >= 40 || current.length ? [] : [value];
           return [...current, { key, values }];
         });
         setAnalysisKey(key);
@@ -1297,13 +1322,11 @@ export default function Analytics() {
                 onKeyChange={setAnalysisKey}
                 selected={active?.values ?? []}
                 summary={
-                  valuesSelected > 1
-                    ? count(valuesSelected) + " values"
-                    : valuesSelected === 1
-                      ? exactValue(
-                          filters.find(({ values }) => values.length)!
-                            .values[0],
-                        )
+                  // Describes the key whose values the picker shows.
+                  (active?.values.length ?? 0) > 1
+                    ? count(active!.values.length) + " values"
+                    : active?.values.length === 1
+                      ? exactValue(active.values[0])
                       : "All values"
                 }
                 metric={metrics?.matchCount}
@@ -1366,9 +1389,22 @@ export default function Analytics() {
               view={view}
               onRegion={changeRegion}
             />
-            {view === "freshness" && area?.bounds && (
+            {view === "freshness" &&
+              area?.bounds &&
+              !filters.length &&
+              !allKeys && (
+                <section className="gs-panel ax-panel ax-freshness">
+                  <p className="ax-empty" role="status">
+                    Choose tag keys, or select all keys, to see how recently
+                    those objects were edited.
+                  </p>
+                </section>
+              )}
+            {view === "freshness" &&
+              area?.bounds &&
+              (filters.length > 0 || allKeys) && (
               <AnalyticsFreshness
-                key={country}
+                key={"freshness-" + country}
                 country={country}
                 region={region}
                 bounds={area.bounds}
