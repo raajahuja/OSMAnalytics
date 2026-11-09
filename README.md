@@ -1,12 +1,12 @@
 # Wayfinder: OpenStreetMap analytics
 
-Explore and filter [OpenStreetMap](https://www.openstreetmap.org) data for any country, on your own machine. Pick a country, and Wayfinder downloads its OSM extract, builds a local database and map, and opens it in your browser. Nothing is hosted for you, and no account or API key is needed.
+How many roads does a country have? How many lakes, schools or bus stops, and which region has the most? Wayfinder answers questions like these from [OpenStreetMap](https://www.openstreetmap.org) data, on your own machine. Pick a country, and it downloads the OSM extract, builds a local database and map, and opens it in your browser. Nothing is hosted for you, and no account or API key is needed.
 
-- Filter by any OSM tag and value, and see matching objects on the map or in a table.
-- Inspect every tag on an object, and open the original on OpenStreetMap.
-- Search for what's near any point on the map.
-- See how recently the data was edited, and where it has gone stale.
-- Export tables as CSV.
+- **Count anything mapped in OSM.** Get totals for any tag or value, such as `highway`, `natural=water`, `waterway`, `building` or `amenity=school`.
+- **Compare regions.** See each region's count, share of the country and density per km².
+- **Break down the numbers.** See how a tag splits across its values, such as `residential`, `track` and `service` roads, and combine tags to narrow a question.
+- **Check how current the data is.** See when objects were last edited, and which areas have gone stale.
+- **See where the numbers come from.** Plot matches on the map, inspect every tag on an object, search near any point, and export tables as CSV.
 
 ![The map showing every road in Luxembourg](docs/screenshots/map.png)
 
