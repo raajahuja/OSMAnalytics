@@ -5,10 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
-import { createBuildManager } from "../../server/builds.mjs";
+import { createBuildManager, missingTools } from "../../server/builds.mjs";
 import { createActivityLog } from "../../server/downloads.mjs";
 
-function setup(behaviour = {}) {
+function setup(behaviour = {}, options = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "wayfinder-builds-"));
   const repoRoot = path.join(root, "repo");
   const inputDir = path.join(root, "input");
@@ -52,13 +52,14 @@ function setup(behaviour = {}) {
     analyticsDir,
     activity,
     spawnImpl,
+    ...options,
   });
   const live = path.join(analyticsDir, "JO.sqlite");
   const stagingFolders = () => {
     const folder = path.join(analyticsDir, ".staging");
     return fs.existsSync(folder) ? fs.readdirSync(folder) : [];
   };
-  return { builds, calls, children, live, activity, repoRoot, analyticsDir, stagingFolders };
+  return { builds, calls, children, live, activity, repoRoot, inputDir, analyticsDir, stagingFolders };
 }
 
 const jordan = {
@@ -172,4 +173,65 @@ test("starting a build twice does not run it twice", async () => {
   builds.start(jordan);
   await builds.whenIdle();
   assert.equal(calls.filter((c) => c.name === "prepare-analytics.py").length, 1);
+});
+
+test("a fresh checkout's first build names the missing tool", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "wayfinder-tools-"));
+  const bin = path.join(root, "bin");
+  fs.mkdirSync(bin);
+  const env = { PATH: bin };
+  assert.match(missingTools(root, env), /npm run setup/);
+  fs.mkdirSync(path.join(root, ".venv/bin"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".venv/bin/python"), "");
+  assert.match(missingTools(root, env), /tippecanoe isn't installed/);
+  fs.writeFileSync(path.join(bin, "tippecanoe"), "");
+  assert.equal(missingTools(root, env), null);
+  assert.equal(
+    missingTools(root, { PATH: "", WAYFINDER_TIPPECANOE: path.join(bin, "tippecanoe") }),
+    null,
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("hand-tuned regions missing from a fresh checkout are downloaded and checked", async () => {
+  const body = '{"type":"FeatureCollection","features":[]}';
+  const md5 = (await import("node:crypto")).createHash("md5").update(body).digest("hex");
+  const requested = [];
+  const { builds, calls, repoRoot, inputDir } = setup({}, {
+    fetchImpl: async (url) => {
+      requested.push(url);
+      return new Response(body);
+    },
+  });
+  fs.writeFileSync(
+    path.join(repoRoot, "code/pipeline/countries/JO.json"),
+    JSON.stringify({ boundaries: "boundaries/jo.geojson", boundaryUrl: "https://example.test/jo", boundaryMd5: md5 }),
+  );
+  builds.start(jordan);
+  await builds.whenIdle();
+  assert.deepEqual(requested, ["https://example.test/jo"]);
+  const saved = path.join(inputDir, "boundaries/jo.geojson");
+  assert.equal(fs.readFileSync(saved, "utf8"), body);
+  assert.deepEqual(fs.readdirSync(path.dirname(saved)), ["jo.geojson"]);
+  const prepare = calls.find((call) => call.name === "prepare-analytics.py").args;
+  assert.equal(prepare[prepare.indexOf("--country") + 1], "JO");
+  assert.equal(prepare[prepare.indexOf("--boundaries") + 1], saved);
+  assert.ok(!calls.some((call) => call.name === "extract-regions.py"));
+  assert.equal(builds.view("JO").state, "done");
+});
+
+test("a bad regions download falls back to automatic regions", async () => {
+  const { builds, calls, repoRoot, inputDir, activity } = setup({}, {
+    fetchImpl: async () => new Response("tampered"),
+  });
+  fs.writeFileSync(
+    path.join(repoRoot, "code/pipeline/countries/JO.json"),
+    JSON.stringify({ boundaries: "boundaries/jo.geojson", boundaryUrl: "https://example.test/jo", boundaryMd5: "0".repeat(32) }),
+  );
+  builds.start(jordan);
+  await builds.whenIdle();
+  assert.ok(!fs.existsSync(path.join(inputDir, "boundaries/jo.geojson")));
+  assert.ok(calls.some((call) => call.name === "extract-regions.py"));
+  assert.ok(messages(activity).some((text) => /checksum\), so regions are found automatically/.test(text)));
+  assert.equal(builds.view("JO").state, "done");
 });

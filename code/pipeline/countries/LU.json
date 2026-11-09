@@ -6,6 +6,8 @@
   "crs": 2169,
   "pbf": "osm/luxembourg.osm.pbf",
   "boundaries": "boundaries/cantons.geojson",
+  "boundaryUrl": "https://download.data.public.lu/resources/cantons-in-luxembourg-2026/20260121-020309/cantons-lux-2026.geojson",
+  "boundaryMd5": "9bcfa564f92317770d2d44af36da1166",
   "source": "https://download.geofabrik.de/europe/luxembourg.html",
   "boundarySource": "https://data.public.lu/en/datasets/cantons-in-luxembourg-2026/",
   "boundaryCredit": "ACT Luxembourg, harmonized by SIG-GR",

@@ -1126,6 +1126,7 @@ export default function Analytics() {
     );
   };
   const [error, setError] = useState("");
+  const [noCountries, setNoCountries] = useState(false);
   useEffect(() => {
     const abort = new AbortController();
     document.title = "Wayfinder — OpenStreetMap Analytics";
@@ -1136,8 +1137,7 @@ export default function Analytics() {
       .then((items) => {
         setCountries(items);
         setCountry(items[0]?.id || "");
-        if (!items.length)
-          setError("No country data yet. Open Countries to download and build one.");
+        setNoCountries(!items.length);
       })
       .catch((error) => {
         if (!abort.signal.aborted) setError(error.message);
@@ -1234,7 +1234,20 @@ export default function Analytics() {
             {error}
           </div>
         )}
-        {!error && !dataset && (
+        {noCountries && (
+          <div className="gs-panel ax-panel ax-empty" role="status">
+            {publicSite ? (
+              "No countries are available yet."
+            ) : (
+              <>
+                No countries yet. Open <a href="/countries">Countries</a> to
+                download and build one. A small country such as Luxembourg
+                takes a few minutes.
+              </>
+            )}
+          </div>
+        )}
+        {!error && !noCountries && !dataset && (
           <div className="gs-panel ax-panel ax-empty" role="status">
             Loading analytics dataset…
           </div>

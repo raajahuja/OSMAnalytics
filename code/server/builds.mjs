@@ -2,10 +2,25 @@
 // responsive. The build writes to a staging folder. Only a result that passes
 // validation replaces the live database, and the old one is kept beside it.
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { constants, existsSync, readdirSync, rmSync, statSync } from "node:fs";
-import { copyFile, mkdir, rename, rm } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+
+// Name what is missing, so a fresh checkout's first build says what to do.
+export function missingTools(repoRoot, env = process.env) {
+  if (!existsSync(path.join(repoRoot, ".venv/bin/python")))
+    return "The Python tools aren't set up. Run npm run setup in the project folder, then build again.";
+  const tippecanoe = env.WAYFINDER_TIPPECANOE || "tippecanoe";
+  const found = tippecanoe.includes("/")
+    ? existsSync(tippecanoe)
+    : (env.PATH || "")
+        .split(path.delimiter)
+        .some((folder) => folder && existsSync(path.join(folder, tippecanoe)));
+  if (!found)
+    return "tippecanoe isn't installed. Install it (brew install tippecanoe, or see github.com/felt/tippecanoe), then build again.";
+  return null;
+}
 import readline from "node:readline";
 
 const STALE_STAGING_MS = 24 * 60 * 60 * 1000;
@@ -17,6 +32,7 @@ export function createBuildManager({
   analyticsDir,
   activity,
   spawnImpl = spawn,
+  fetchImpl = fetch,
   now = Date.now,
 }) {
   const python = path.join(repoRoot, ".venv/bin/python");
@@ -70,6 +86,51 @@ export function createBuildManager({
     log(job, message);
   }
 
+  // A country with hand-checked settings, like Luxembourg, uses its own
+  // regions. A fresh checkout doesn't have that file yet, so fetch it, and
+  // fall back to automatic regions if that isn't possible.
+  // Returns the extra build arguments, or null to find regions automatically.
+  async function handTunedRegions(job) {
+    const settingsFile = pipeline("countries/" + job.code + ".json");
+    if (!existsSync(settingsFile)) return null;
+    const settings = JSON.parse(await readFile(settingsFile, "utf8"));
+    const boundaries = path.join(inputDir, settings.boundaries || "");
+    if (!settings.boundaries) return [];
+    // Named explicitly, so WAYFINDER_INPUT applies to the Python side too.
+    if (existsSync(boundaries)) return ["--boundaries", boundaries];
+    const fallback = "so regions are found automatically";
+    if (!settings.boundaryUrl) {
+      log(job, "The regions file input/" + settings.boundaries + " is missing, " + fallback);
+      return null;
+    }
+    enterStage(job, "regions", "Downloading the region boundaries");
+    try {
+      const response = await fetchImpl(settings.boundaryUrl, {
+        signal: AbortSignal.timeout(120_000),
+      });
+      if (!response.ok) throw new Error("the server answered " + response.status);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (
+        settings.boundaryMd5 &&
+        createHash("md5").update(bytes).digest("hex") !== settings.boundaryMd5
+      )
+        throw new Error("the file didn't match its checksum");
+      await mkdir(path.dirname(boundaries), { recursive: true });
+      const temporary = boundaries + "." + randomUUID() + ".part";
+      try {
+        await writeFile(temporary, bytes);
+        await rename(temporary, boundaries);
+      } finally {
+        await rm(temporary, { force: true });
+      }
+      log(job, "Saved the region boundaries as input/" + settings.boundaries);
+      return ["--boundaries", boundaries];
+    } catch (error) {
+      log(job, "Couldn't download the region boundaries (" + error.message + "), " + fallback);
+      return null;
+    }
+  }
+
   async function run(job) {
     const staging = path.join(stagingRoot, job.code + "-" + randomUUID());
     const output = path.join(staging, job.code + ".sqlite");
@@ -78,10 +139,13 @@ export function createBuildManager({
     job.startedMs = now();
     job.error = null;
     try {
+      // Test doubles replace spawn and need no real tools.
+      const missing = spawnImpl === spawn && missingTools(repoRoot);
+      if (missing) throw new Error(missing);
       await mkdir(staging, { recursive: true });
-      let countryArgs = ["--country", job.code];
-      // A country with hand-checked settings, like Luxembourg, keeps them.
-      if (!existsSync(pipeline("countries/" + job.code + ".json"))) {
+      const handTuned = await handTunedRegions(job);
+      let countryArgs = ["--country", job.code, ...(handTuned ?? [])];
+      if (!handTuned) {
         enterStage(job, "regions", "Finding regions in the downloaded data");
         await runScript(job, "extract-regions.py", [
           "--code", job.code,

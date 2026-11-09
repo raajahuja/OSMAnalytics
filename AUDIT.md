@@ -6,7 +6,7 @@ Findings marked **Fixed** were reproduced on the running code, fixed, and now ha
 
 ## Status, later on 9 Nov 2026
 
-The server, caching, query and storage work below has since been done, and the figures in this file describe the code before it. Still open from this audit: replacing the in-memory Python pipeline for planet-scale builds (item 2), country-specific imagery beyond Luxembourg, code findings C4 and C6, and splitting up the large server and map files. See the git history for what changed.
+The server, caching, query and storage work below has since been done, and the figures in this file describe the code before it. Still open from this audit: replacing the in-memory Python pipeline for planet-scale builds (item 2), country-specific imagery beyond Luxembourg, code finding C6, the imagery cache size limit, and splitting up the large server and map files. See the git history for what changed.
 
 | Measure (Austria, warm cache, one request at a time) | Before | After |
 |---|---|---|
@@ -19,6 +19,37 @@ The server, caching, query and storage work below has since been done, and the f
 | Nearby, 2 km | 1,490 ms | 449 ms |
 | Value search | 305 ms | 123 ms |
 | Map context | 3.9 MB | 943 KB, 111 KB compressed |
+
+## Second review, 9–10 Nov 2026
+
+A read-only review of the MapLibre version, with India (27.8M objects) as the large test country. Every finding below is fixed and tested unless marked open.
+
+| Finding | Status | Resolution |
+|---|---|---|
+| The map drew 1,200 of N objects without saying so | Fixed | A note says when the view is a sample |
+| Freshness with several keys timed out at 15 s on India | Fixed | Estimated from a 250,000-object sample (2.0 s), labelled as an estimate. **Match all** stays exact |
+| **Every object** took 12.6 s on India | Fixed | IDs are generated in sample order, so nothing is sorted (16 ms) |
+| **Match all** showed nothing, because each new key started on its most common value | Fixed | Only the first key starts on a value. Later keys start on all values |
+| Freshness showed every object when no key was chosen | Fixed | It asks for a key, or **All keys** |
+| The value picker label showed another key's value | Fixed | It describes the key it lists |
+| Quick clicks could pass the 12-key limit, or add a key to a newly chosen country | Fixed | Pending keys count toward the limit and are dropped on a country change |
+| `Range: bytes=-100` returned the whole tile file | Fixed | Suffix ranges return the last n bytes |
+| A crash while saving a satellite tile could cache a broken tile (C4) | Fixed | Tiles are written to a temporary file and renamed |
+| India's place list was 27.8 MB and re-parsed on every request | Fixed | Compact rows, parsed once: 6.3 MB, 13 ms when cached |
+| Every country stayed open in every query worker | Fixed | Each worker keeps 3 open (`WAYFINDER_OPEN_COUNTRIES`) |
+| Rebuilds silently keep a full copy of the old database (`*.previous.sqlite`, 12 GB here) | Documented | The README explains these files and when to delete them |
+| A build without the Python environment or tippecanoe failed with "The build tools couldn't start" | Fixed | The build names what is missing and how to fix it. The README has a troubleshooting table |
+| Luxembourg failed to build from a fresh clone, because only `npm run analytics:download` fetched its cantons | Fixed | The build downloads and checks hand-checked boundaries, and falls back to automatic regions |
+| The first heavy query after a restart takes 1.2–1.8 s while the database is read from disk | Open, accepted | Warming several GB at every start would cost local users more than it saves |
+| A small coastal country, such as Monaco, opens zoomed out over its territorial waters | Open | Fit to the data's extent rather than the boundary |
+
+| Measure (India, warm cache) | Before | After |
+|---|---|---|
+| Every object, whole country | 2.9 s | 16 ms |
+| Every object, ways only | 11 s | 127 ms |
+| Every object, relations only | 10.5 s | 10 ms |
+| Freshness, `highway` + `building` | over 15 s (timeout) | 2.0 s, estimated |
+| Map places | 27.8 MB | 6.3 MB, 2.35 MB compressed |
 
 ## Summary
 
@@ -94,7 +125,7 @@ Single-key counts are precomputed and stay fast.
 | A2 | Blocker for world | Regions were bits in an integer, and JavaScript `<<` wraps at 32 bits. | Fixed | New `feature_regions` table with no limit. Needed a database rebuild |
 | A3 | High for world | A viewport past 180 degrees returned 400, and nearby did not wrap. | Fixed | Viewports and nearby split at the line, and results return in the map's frame. Straddling countries store continuous longitudes. One gap remains, below |
 | C3 | Medium | Static file stream has no error handler, so a file removed during a deploy can crash the process. | By reading | `index.mjs:80` |
-| C4 | Medium | Imagery tiles are written non-atomically, so a crash can cache a truncated tile. The cache also has no size limit. | By reading | `imagery.mjs:43` |
+| C4 | Medium | Imagery tiles are written non-atomically, so a crash can cache a truncated tile. The cache also has no size limit. | Partly fixed | Writes are atomic. The cache still has no size limit |
 | C5 | Low | `vite`, a dev dependency, is imported at the top even in production, so `npm ci --omit=dev` would break startup. | By reading | `index.mjs:4` |
 | C6 | Low | An oversized POST body is still read to the end before it is refused. | By reading | `analytics.mjs:formParameters` |
 | C7 | Low | `npm test` silently excluded the 6 routing tests before this audit. They are now included. | Fixed | `package.json` |
@@ -134,9 +165,9 @@ Remaining gap in A3, by reading: the nearby tool wraps its centre to the -180 to
 
 ### Project
 
-- **This folder is not a git repository.** It is the highest-value cheap fix, since there is no history or rollback.
-- About 5,700 lines serve the routing app that the README says is inactive. Decide whether to delete or revive it.
-- There is no CI, linter or Python dependency lock.
+- Done: the project is a git repository.
+- Done: the inactive routing app is removed.
+- Done: CI runs the tests on every push. There is still no linter or Python dependency lock.
 
 ## Tests
 
@@ -144,7 +175,7 @@ Remaining gap in A3, by reading: the nearby tool wraps its centre to the -180 to
 |---|---|---|
 | Unit | `npm run test:unit`, `npm run test:py` | Validation, CSV, imagery cache, paths, geometry rules, themes, region clipping, relation cycles |
 | Smoke | `npm run test:smoke` | Production and dev servers boot, assets load, every endpoint answers, pipeline scripts parse |
-| Integration | `npm run test:integration` | Fixture through the real pipeline and HTTP API with exact results, plus real Luxembourg and Monaco routing |
+| Integration | `npm run test:integration` | Fixture through the real pipeline and HTTP API with exact results, plus the real Luxembourg database |
 | Regression | `npm run test:regression` | 11 golden API responses and every fixed bug |
 | Visual | `npm run test:visual` | Screenshots on desktop and mobile, right-click menu, inspector, filters, nearby |
 | Performance | `npm run test:perf` | Latency budgets on real data |
