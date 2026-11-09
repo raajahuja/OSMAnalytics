@@ -156,7 +156,7 @@ npm test
 
 This runs the unit, smoke, integration and regression tests. Most use a small synthetic extract built by `code/tests/fixtures/build_fixture.py`, and those needing real data skip themselves unless Luxembourg is built. Each tier has its own command, such as `npm run test:unit`.
 
-`npm run test:visual` compares screenshots, and its baselines were taken on macOS. Run `npm run test:perf` for latency budgets on real data. After an intended change, refresh expected results with `UPDATE_GOLDEN=1 npm run test:regression` or `npx playwright test --update-snapshots`.
+`npm run screenshots` walks through every feature in Chrome on real Luxembourg data, and retakes the images in this README. `npm run test:visual` compares screenshots, and its baselines were taken on macOS. Run `npm run test:perf` for latency budgets on real data. After an intended change, refresh expected results with `UPDATE_GOLDEN=1 npm run test:regression` or `npx playwright test --update-snapshots`.
 
 Known bugs and the plan for planet-scale builds are in [AUDIT.md](AUDIT.md).
 

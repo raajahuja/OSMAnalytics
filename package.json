@@ -28,6 +28,7 @@
     "test:regression": "node --experimental-strip-types --no-warnings --test --test-concurrency=4 code/tests/regression/*.test.mjs",
     "test:visual": "playwright test",
     "test:perf": "node --no-warnings code/tests/perf/benchmark.mjs",
+    "screenshots": "node --no-warnings code/tests/screenshots/capture.mjs",
     "test:all": "npm run build && npm test && npm run test:visual"
   },
   "dependencies": {
