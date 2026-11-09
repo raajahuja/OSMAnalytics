@@ -312,6 +312,188 @@ test.describe("desktop interactions @desktop", () => {
     await expect(page.getByText("building=yes")).toBeVisible();
   });
 
+  test("the map zooms out to the lowest level with tiles", async ({ page }) => {
+    await page.route("**/imagery/**", (route) => route.abort());
+    const minZoom = () =>
+      map(page).evaluate((host) => host.wayfinder.map.getMinZoom());
+    expect(await minZoom()).toBe(4);
+    await page.getByRole("button", { name: "Satellite" }).click();
+    await expect.poll(minZoom).toBe(6);
+    await page.getByRole("button", { name: "Map", exact: true }).click();
+    await expect.poll(minZoom).toBe(4);
+  });
+
+  test("short roads in a dense view still show as dots", async ({ page }) => {
+    // More than the 120 objects that used to be needed before dots appeared.
+    await page.route("**/api/analytics/LU/features*", (route) =>
+      route.fulfill({
+        json: {
+          type: "FeatureCollection",
+          limited: true,
+          features: Array.from({ length: 200 }, (_, index) => ({
+            type: "Feature",
+            id: "way/" + (9000 + index),
+            properties: {
+              kind: "way",
+              id: 9000 + index,
+              label: null,
+              tags: [["highway", "residential"]],
+              value: "residential",
+            },
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [5.92 + index * 0.0015, 49.55],
+                [5.92 + index * 0.0015 + 0.00001, 49.55],
+              ],
+            },
+          })),
+        },
+      }),
+    );
+    await page.getByRole("button", { name: /^Tag value:/ }).click();
+    await page.getByRole("checkbox", { name: /^motorway/ }).click();
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect
+      .poll(() =>
+        map(page).evaluate(
+          (host) =>
+            host.wayfinder.map
+              .querySourceFeatures("matches")
+              .filter((feature) => feature.geometry.type === "Point").length,
+        ),
+      )
+      .toBeGreaterThan(100);
+  });
+
+  test.describe("filters", () => {
+    const keyTrigger = (page) =>
+      page.getByRole("button", { name: /^Tag key:/ });
+    const valueTrigger = (page) =>
+      page.getByRole("button", { name: /^Tag value:/ });
+    const label = (locator) => locator.getAttribute("aria-label");
+    const expectValue = (page, text) =>
+      expect(valueTrigger(page)).toHaveAttribute("aria-label", text);
+    const expectKey = (page, text) =>
+      expect(keyTrigger(page)).toHaveAttribute("aria-label", text);
+    const tick = (page, name) =>
+      page.getByRole("checkbox", { name: new RegExp("^" + name) }).click();
+    const done = (page) => page.getByRole("button", { name: "Done" }).click();
+    const choose = async (page, ...values) => {
+      await valueTrigger(page).click();
+      for (const value of values) await tick(page, value);
+      await done(page);
+    };
+
+    test("one click narrows all values to that value", async ({ page }) => {
+      await choose(page, "motorway");
+      await expectValue(page, "Tag value: motorway, 1 objects");
+    });
+
+    test("several values can be added and removed", async ({ page }) => {
+      await choose(page, "motorway", "service");
+      await expectValue(page, "Tag value: 2 values, 3 objects");
+      await choose(page, "service");
+      await expectValue(page, "Tag value: motorway, 1 objects");
+    });
+
+    test("clicking the only selected value keeps it selected", async ({
+      page,
+    }) => {
+      await choose(page, "motorway");
+      await valueTrigger(page).click();
+      await tick(page, "motorway");
+      await expect(
+        page.getByRole("button", { name: "Remove motorway" }),
+      ).toBeDisabled();
+      await done(page);
+      await page.waitForTimeout(400);
+      await expectValue(page, "Tag value: motorway, 1 objects");
+    });
+
+    test("the same rule holds in the table", async ({ page }) => {
+      await choose(page, "motorway");
+      await page.getByRole("button", { name: /table view/i }).click();
+      await page
+        .locator(".ax-tag-table-content")
+        .getByRole("button", { name: "motorway" })
+        .click();
+      await page.waitForTimeout(400);
+      await expectValue(page, "Tag value: motorway, 1 objects");
+    });
+
+    test("select all is the way back to every value", async ({ page }) => {
+      await choose(page, "motorway");
+      await selectAllValues(page);
+      await expectValue(page, "Tag value: All values, 7 objects");
+    });
+
+    test("a value missing from a canton falls back to its first", async ({
+      page,
+    }) => {
+      await choose(page, "bus_stop");
+      await page.getByRole("combobox", { name: /canton/i }).selectOption("C02");
+      await expectValue(page, "Tag value: motorway, 1 objects");
+    });
+
+    test("a value missing for an object type falls back too", async ({
+      page,
+    }) => {
+      await choose(page, "motorway");
+      await page.getByLabel("Object type").selectOption("node");
+      await expect(valueTrigger(page)).toHaveAttribute(
+        "aria-label",
+        /^Tag value: (bus_stop|traffic_signals), 1 objects$/,
+      );
+    });
+
+    test("all values survive a canton change", async ({ page }) => {
+      await page.getByRole("combobox", { name: /canton/i }).selectOption("C02");
+      await expectValue(page, "Tag value: All values, 1 objects");
+    });
+
+    test("keys can be added, matched together and removed", async ({
+      page,
+    }) => {
+      await keyTrigger(page).click();
+      await tick(page, "barrier");
+      await page.getByRole("button", { name: "barrier" }).first().waitFor();
+      await done(page);
+      await expect
+        .poll(() => label(keyTrigger(page)))
+        .toMatch(/^Tag key: highway \+1,/);
+      await page.getByLabel("Key matching").selectOption({ index: 1 });
+      await expect
+        .poll(() => label(valueTrigger(page)))
+        .toMatch(/, 0 objects$/);
+      await keyTrigger(page).click();
+      await tick(page, "barrier");
+      await done(page);
+      await expect
+        .poll(() => label(keyTrigger(page)))
+        .toBe("Tag key: highway, 7 objects");
+    });
+
+    test("removing the last key leaves nothing selected", async ({ page }) => {
+      await keyTrigger(page).click();
+      await tick(page, "highway");
+      await done(page);
+      await expectKey(page, "Tag key: Choose tag keys");
+      await expect(valueTrigger(page)).toBeDisabled();
+      await expect
+        .poll(() => map(page).evaluate((host) => host.wayfinder.drawn.size))
+        .toBe(0);
+    });
+
+    test("clear removes every key, including all keys", async ({ page }) => {
+      await keyTrigger(page).click();
+      await page.getByRole("button", { name: "Select all" }).click();
+      await page.getByRole("button", { name: "Clear" }).click();
+      await done(page);
+      await expectKey(page, "Tag key: Choose tag keys");
+    });
+  });
+
   test("objects can be hidden to see only the base map", async ({ page }) => {
     await page.route("**/imagery/**", (route) => route.abort());
     const labels = page.locator(".ax-map-place").first();

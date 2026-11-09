@@ -494,13 +494,14 @@ function TagPicker({
                   key={item}
                   title={exactValue(item)}
                   aria-label={"Remove " + exactValue(item)}
+                  disabled={valueMode && selected.length === 1}
                   onClick={() => onToggle(item)}
                 >
                   <code>{exactValue(item)}</code>
                   {selectedMetrics?.has(item) && (
                     <small>{count(selectedMetrics.get(item)!)}</small>
                   )}
-                  <X size={12} />
+                  {!(valueMode && selected.length === 1) && <X size={12} />}
                 </button>
               ))}
             </div>
@@ -985,7 +986,7 @@ export default function Analytics() {
     const abort = new AbortController();
     const timer = setTimeout(() => {
       read<FilterMetrics>(metricsUrl, abort.signal, filterParams)
-        .then((data) => {
+        .then(async (data) => {
           if (abort.signal.aborted) return;
           const available = new Map(data.keys);
           const exact = new Map(
@@ -1002,6 +1003,29 @@ export default function Analytics() {
                 (value) => (exact.get(JSON.stringify([key, value])) ?? 0) > 0,
               ),
             }));
+          // A value missing from this area falls back to the area's most
+          // common value, because an empty list would mean every value.
+          await Promise.all(
+            next
+              .filter(
+                ({ key, values }) =>
+                  !values.length &&
+                  filters.some(
+                    (rule) => rule.key === key && rule.values.length,
+                  ),
+              )
+              .map(async (rule) => {
+                const first = await firstValue(
+                  country,
+                  region,
+                  kind,
+                  rule.key,
+                  abort.signal,
+                );
+                if (first !== undefined) rule.values = [first];
+              }),
+          );
+          if (abort.signal.aborted) return;
           if (JSON.stringify(next) !== JSON.stringify(filters)) {
             setFilters((current) => (current === filters ? next : current));
             setAdjustedScope(scopeId);
@@ -1067,7 +1091,10 @@ export default function Analytics() {
     if (!active) return;
     updateValues(active.key, (values) =>
       values.includes(value)
-        ? values.filter((item) => item !== value)
+        ? // No values means "all values", so the last one stays selected.
+          values.length === 1
+          ? values
+          : values.filter((item) => item !== value)
         : valuesSelected < 40
           ? [...values, value]
           : values,

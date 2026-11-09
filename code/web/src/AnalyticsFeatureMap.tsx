@@ -140,6 +140,11 @@ function fitBox(
   );
 }
 
+// The pre-built tiles stop at zoom 4, and the map is blank below that.
+const lowestZoom = 4;
+// Luxembourg's aerial imagery starts at a closer zoom than the base map.
+const lowestAerialZoom = 6;
+
 const fitArea = (m: MapLibreMap | null, bounds: FeatureBounds, maxZoom = 13) =>
   fitBox(m, bounds, { padding: 16, maxZoom });
 
@@ -213,6 +218,9 @@ export default function AnalyticsFeatureMap({
   const [contextError, setContextError] = useState("");
   const [basemap, setBasemap] = useState<"street" | "satellite">("street");
   const aerial = basemap !== "street";
+  useEffect(() => {
+    map.current?.setMinZoom(aerial ? lowestAerialZoom : lowestZoom);
+  }, [aerial]);
   const aerialRef = useRef(aerial);
   const [imageryError, setImageryError] = useState(false);
   const [objectsHidden, setObjectsHidden] = useState(false);
@@ -254,7 +262,7 @@ export default function AnalyticsFeatureMap({
       container,
       style: featureMapStyle(country, datasetVersion(country)),
       attributionControl: false,
-      minZoom: 6,
+      minZoom: lowestZoom,
       maxZoom: 18,
       dragRotate: false,
       pitchWithRotate: false,
@@ -868,7 +876,7 @@ export default function AnalyticsFeatureMap({
           ],
         });
         // A short line can vanish at this zoom, so a dot marks where it is.
-        if (rare && !feature.geometry.type.includes("Point")) {
+        if (!feature.geometry.type.includes("Point")) {
           const low = m.project([box[0], box[1]]);
           const high = m.project([box[2], box[3]]);
           const center: [number, number] = [
