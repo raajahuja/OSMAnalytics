@@ -1,0 +1,13 @@
+{
+  "id": "LU",
+  "name": "Luxembourg",
+  "division": "Canton",
+  "expectedRegions": 12,
+  "crs": 2169,
+  "pbf": "osm/luxembourg.osm.pbf",
+  "boundaries": "boundaries/cantons.geojson",
+  "source": "https://download.geofabrik.de/europe/luxembourg.html",
+  "boundarySource": "https://data.public.lu/en/datasets/cantons-in-luxembourg-2026/",
+  "boundaryCredit": "ACT Luxembourg, harmonized by SIG-GR",
+  "boundaryLicense": "CC BY 4.0"
+}

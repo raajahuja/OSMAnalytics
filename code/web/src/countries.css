@@ -1,0 +1,526 @@
+/* One screen: the page never scrolls, only the menu, list and details do. */
+.cy-page {
+  position: relative;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cy-brand {
+  flex: none;
+}
+.cy-brand .gs-brand-title {
+  overflow: visible;
+  max-width: none;
+}
+.cy-main {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cy-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr) 300px;
+  gap: 12px;
+}
+.cy-message {
+  margin: 0;
+  padding: 12px 14px;
+}
+.cy-warning,
+.cy-problem {
+  color: var(--gs-warning);
+}
+.cy-muted {
+  color: var(--gs-tertiary);
+}
+.cy-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cy-menu {
+  overflow-y: auto;
+  padding: 8px;
+}
+.cy-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cy-menu h2 {
+  margin: 12px 8px 4px;
+  color: var(--gs-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.cy-menu button {
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 6px;
+  color: var(--gs-text-soft);
+  font-size: 13px;
+  text-align: left;
+}
+.cy-menu button:hover {
+  background: var(--gs-fill);
+}
+.cy-menu button[aria-current="true"] {
+  background: var(--gs-accent-soft);
+  color: var(--gs-text);
+}
+.cy-menu .gs-num {
+  color: var(--gs-tertiary);
+  font-size: 12px;
+}
+
+.cy-list {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cy-toolbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gs-separator);
+}
+.cy-search {
+  position: relative;
+  flex: 0 1 280px;
+  min-width: 160px;
+}
+.cy-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gs-tertiary);
+  pointer-events: none;
+}
+.cy-search input {
+  width: 100%;
+  padding-left: 32px;
+}
+.cy-page .cy-picker {
+  display: none;
+}
+.cy-count {
+  margin: 0 0 0 auto;
+}
+.cy-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cy-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: 13px;
+}
+.cy-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 12px;
+  background: var(--gs-surface);
+  color: var(--gs-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  border-bottom: 1px solid var(--gs-separator);
+}
+.cy-table tbody th,
+.cy-table td {
+  height: 34px;
+  padding: 0 12px;
+  background: none;
+  text-align: left;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid var(--gs-separator);
+}
+.cy-table tbody tr {
+  cursor: pointer;
+}
+.cy-table tbody tr:hover > * {
+  background: var(--gs-fill);
+}
+.cy-table tbody tr[aria-selected="true"] > * {
+  background: var(--gs-accent-soft);
+}
+.cy-table tbody th button {
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.cy-table th.cy-right,
+.cy-table td.cy-right {
+  width: 100px;
+  text-align: right;
+}
+.cy-table th.cy-center,
+.cy-table td.cy-center {
+  width: 100px;
+  text-align: center;
+}
+.cy-table th.cy-next,
+.cy-table td.cy-next {
+  width: 160px;
+}
+.cy-yes,
+.cy-no {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.cy-yes {
+  color: var(--gs-success);
+}
+.cy-no {
+  color: var(--gs-tertiary);
+}
+.cy-step {
+  margin: 0;
+  font-weight: 500;
+}
+.cy-step--up-to-date {
+  color: var(--gs-success);
+}
+.cy-step--too-large {
+  color: var(--gs-warning);
+}
+.cy-step--unavailable {
+  color: var(--gs-tertiary);
+  font-weight: 400;
+}
+
+.cy-step--job-failed,
+.cy-step--job-paused {
+  color: var(--gs-warning);
+}
+.cy-table th.cy-row-action,
+.cy-table td.cy-row-action {
+  width: 88px;
+  text-align: right;
+}
+.cy-table td.cy-row-action {
+  overflow: visible;
+}
+.cy-job-buttons {
+  display: inline-flex;
+  gap: 4px;
+}
+.cy-icon {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.cy-icon--start {
+  color: var(--gs-accent-light);
+}
+
+.cy-console {
+  flex: none;
+  overflow: hidden;
+}
+.cy-page .cy-console-head {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  text-align: left;
+}
+.cy-console-head strong {
+  font-weight: 600;
+}
+.cy-console-toggle {
+  margin-left: auto;
+}
+.cy-console-body {
+  height: 150px;
+  display: grid;
+  grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
+  border-top: 1px solid var(--gs-separator);
+}
+.cy-jobs {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  font-size: 13px;
+  border-right: 1px solid var(--gs-separator);
+}
+.cy-jobs p {
+  margin: 0;
+}
+.cy-job {
+  display: grid;
+  gap: 5px;
+}
+.cy-job-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cy-job-line .cy-job-buttons {
+  margin-left: auto;
+}
+.cy-log {
+  min-height: 0;
+  margin: 0;
+  padding: 8px 12px;
+  overflow-y: auto;
+  list-style: none;
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--gs-text-soft);
+}
+.cy-log li {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cy-log time {
+  margin-right: 10px;
+  color: var(--gs-tertiary);
+}
+.cy-log b {
+  font-weight: 600;
+}
+.cy-log--success {
+  color: var(--gs-success);
+}
+.cy-log--warning {
+  color: var(--gs-warning);
+}
+.cy-log--error {
+  color: var(--gs-danger);
+}
+.cy-step--job-downloading,
+.cy-step--job-verifying,
+.cy-step--job-queued {
+  color: var(--gs-accent-light);
+}
+.cy-action {
+  margin-top: 12px;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+.cy-bar {
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--gs-fill-strong);
+}
+.cy-bar span {
+  display: block;
+  height: 100%;
+  background: var(--gs-progress);
+  transition: width 0.3s ease;
+}
+.cy-done {
+  color: var(--gs-success);
+}
+
+.cy-detail {
+  overflow-y: auto;
+  padding: 14px;
+  font-size: 13px;
+}
+.cy-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cy-detail-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.cy-detail-head p {
+  margin: 2px 0 0;
+}
+.cy-close {
+  display: none;
+}
+.cy-detail h3 {
+  margin: 14px 0 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--gs-separator);
+  color: var(--gs-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.cy-detail p {
+  margin: 0;
+}
+.cy-detail p + p,
+.cy-detail p + dl,
+.cy-detail dl + p {
+  margin-top: 6px;
+}
+.cy-detail dl {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.cy-fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cy-fact dt {
+  color: var(--gs-tertiary);
+}
+.cy-fact dd {
+  margin: 0;
+  text-align: right;
+}
+.cy-placeholder {
+  color: var(--gs-secondary);
+}
+
+@media (max-width: 1100px) {
+  .cy-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+  .cy-detail {
+    display: none;
+    position: fixed;
+    top: 72px;
+    right: 16px;
+    bottom: 16px;
+    width: min(320px, calc(100vw - 32px));
+    z-index: 20;
+    background: var(--gs-surface-raised);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  }
+  .cy-detail--open {
+    display: block;
+  }
+  .cy-close {
+    display: inline-flex;
+    flex: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .cy-page .cy-brand .gs-brand-title {
+    display: none;
+  }
+  .cy-main {
+    padding: 8px;
+  }
+  .cy-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cy-menu {
+    display: none;
+  }
+  .cy-page .cy-picker {
+    display: block;
+    flex: 1 1 100%;
+  }
+  .cy-picker select {
+    width: 100%;
+  }
+  .cy-search {
+    flex: 1 1 100%;
+  }
+  .cy-count {
+    margin-left: 0;
+  }
+  .cy-detail {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: 75dvh;
+    border-radius: 12px 12px 0 0;
+  }
+  .cy-console-body {
+    height: 180px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .cy-jobs {
+    max-height: 96px;
+    border-right: 0;
+    border-bottom: 1px solid var(--gs-separator);
+  }
+  .cy-table th.cy-next,
+  .cy-table td.cy-next {
+    display: none;
+  }
+  .cy-table th.cy-right,
+  .cy-table td.cy-right {
+    width: 66px;
+  }
+  .cy-table th.cy-row-action,
+  .cy-table td.cy-row-action {
+    width: 76px;
+    padding-left: 2px;
+  }
+  .cy-table th.cy-center,
+  .cy-table td.cy-center {
+    width: 54px;
+    padding-left: 4px;
+    padding-right: 4px;
+    white-space: normal;
+  }
+  .cy-table thead th {
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: normal;
+    vertical-align: bottom;
+  }
+  .cy-table tbody th,
+  .cy-table td {
+    height: 40px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}

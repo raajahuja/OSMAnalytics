@@ -1,0 +1,15 @@
+node_modules/
+.venv/
+__pycache__/
+.DS_Store
+*.log
+
+# Downloaded and generated data stay out of version control.
+input/*
+!input/.gitkeep
+output/*
+!output/.gitkeep
+
+# Playwright run output. Baseline screenshots in code/tests/visual are kept.
+test-results/
+playwright-report/

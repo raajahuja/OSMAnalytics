@@ -1,0 +1,32 @@
+{
+ "kind": "relation",
+ "id": 301,
+ "version": 1,
+ "edited": 1763596800,
+ "label": "Fixture Forest",
+ "geometry": "MultiPolygon",
+ "coordinates": null,
+ "bounds": [
+  6.109999179840088,
+  49.5099983215332,
+  6.150000095367432,
+  49.55000686645508
+ ],
+ "regions": [
+  "Canton 03"
+ ],
+ "tags": [
+  {
+   "key": "landuse",
+   "value": "forest"
+  },
+  {
+   "key": "name",
+   "value": "Fixture Forest"
+  },
+  {
+   "key": "type",
+   "value": "multipolygon"
+  }
+ ]
+}

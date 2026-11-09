@@ -1,0 +1,94 @@
+{
+ "type": "FeatureCollection",
+ "total": 4,
+ "page": 1,
+ "pageSize": 80,
+ "features": [
+  {
+   "type": "Feature",
+   "id": "node/101",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     5.931,
+     49.531
+    ]
+   },
+   "properties": {
+    "kind": "node",
+    "id": 101,
+    "label": "Église Saint-Jean",
+    "tags": [],
+    "category": "highway=bus_stop",
+    "distance": 0
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "way/202",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      5.93,
+      49.53
+     ],
+     [
+      5.94,
+      49.53
+     ],
+     [
+      5.95,
+      49.53
+     ]
+    ]
+   },
+   "properties": {
+    "kind": "way",
+    "id": 202,
+    "label": "Rue de la Gare",
+    "tags": [],
+    "category": "highway=residential",
+    "distance": 111
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "node/102",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     5.932,
+     49.532
+    ]
+   },
+   "properties": {
+    "kind": "node",
+    "id": 102,
+    "label": "Café du Parc",
+    "tags": [],
+    "category": "amenity=cafe",
+    "distance": 133
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "node/107",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     5.933,
+     49.533
+    ]
+   },
+   "properties": {
+    "kind": "node",
+    "id": 107,
+    "label": null,
+    "tags": [],
+    "category": "barrier=gate",
+    "distance": 265
+   }
+  }
+ ]
+}

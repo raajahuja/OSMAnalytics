@@ -1,0 +1,116 @@
+{
+ "rows": [
+  {
+   "value": "service",
+   "nodes": 0,
+   "ways": 2,
+   "relations": 0,
+   "node_id": null,
+   "way_id": 208,
+   "relation_id": null,
+   "count": 2
+  },
+  {
+   "value": "bus_stop",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "node_id": 101,
+   "way_id": null,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "motorway",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "node_id": null,
+   "way_id": 201,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "residential",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "node_id": null,
+   "way_id": 202,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "traffic_signals",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "node_id": 104,
+   "way_id": null,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "unclassified",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "node_id": null,
+   "way_id": 203,
+   "relation_id": null,
+   "count": 1
+  }
+ ],
+ "total": 6,
+ "page": 1,
+ "pageSize": 30,
+ "tag": {
+  "count": 7,
+  "distinct_values": 6
+ },
+ "distribution": {
+  "top": [
+   {
+    "value": "service",
+    "count": 2
+   },
+   {
+    "value": "bus_stop",
+    "count": 1
+   },
+   {
+    "value": "motorway",
+    "count": 1
+   },
+   {
+    "value": "residential",
+    "count": 1
+   },
+   {
+    "value": "traffic_signals",
+    "count": 1
+   },
+   {
+    "value": "unclassified",
+    "count": 1
+   }
+  ],
+  "otherCount": 0,
+  "otherValues": 0
+ },
+ "comparison": {
+  "all": 1,
+  "C01": 1,
+  "C02": 1,
+  "C03": 0,
+  "C04": 0,
+  "C05": 0,
+  "C06": 0,
+  "C07": 0,
+  "C08": 0,
+  "C09": 0,
+  "C10": 0,
+  "C11": 0,
+  "C12": 0
+ }
+}

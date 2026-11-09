@@ -1,0 +1,838 @@
+/* GeoStack Charcoal — the design system this app is styled with.
+
+   index.html links this file first in <head>, before the app's own styles.
+
+   CASCADE CONTRACT
+   - Tokens are unlayered custom properties on :root.
+   - Base and component rules live in the gs.base / gs.components cascade
+     layers, so any unlayered app CSS wins regardless of specificity or order.
+     To restyle a shared component, target it with one app-scoped class.
+   - Third-party widget skins (Leaflet, MapLibre) are unlayered at the end,
+     because vendor stylesheets are unlayered and would otherwise win.
+   - Apps never redefine --gs-* tokens. They alias their own local variables
+     to them (for example `--bg: var(--gs-bg)`) on their own root.
+
+   THEMING
+   Dark is the default. `html[data-theme="light"]` switches the whole page;
+   `.gs-light` scopes light to one container. */
+
+@layer gs.base, gs.components;
+
+/* ---------------------------------------------------------------- Tokens */
+
+:root {
+  color-scheme: dark;
+
+  --gs-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --gs-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* Neutrals: near-black, low-contrast layers. */
+  --gs-bg: #101213;                           /* canvas, app bar */
+  --gs-surface: #131517;                      /* panels, sidebars, cards */
+  --gs-surface-raised: #1a1c1f;               /* menus, popovers, dialogs, map overlays */
+  --gs-surface-translucent: rgba(19, 21, 23, 0.86); /* sticky or floating bars only */
+  --gs-separator: #24272a;                    /* 1px hairlines */
+  --gs-separator-strong: #2e3236;             /* input and secondary-button borders */
+  --gs-separator-hover: #3a3e43;
+
+  /* Text: four steps; emphasis by colour, not by size or weight. */
+  --gs-text: #e6e7e9;                         /* 14.9:1 on bg — softened so nothing glares */
+  --gs-text-soft: #c2c4c8;                    /* 10.9:1 — row titles, idle nav */
+  --gs-secondary: #a2a5a9;                    /* 7.6:1 — labels, idle tabs, secondary text */
+  --gs-tertiary: #7d8187;                     /* 4.8:1 — non-essential meta only; never darker */
+
+  /* Fills and interaction states. */
+  --gs-fill: rgba(255, 255, 255, 0.05);
+  --gs-fill-strong: rgba(255, 255, 255, 0.08);
+  --gs-hover: rgba(255, 255, 255, 0.04);
+  --gs-press: rgba(255, 255, 255, 0.07);
+  --gs-selected: rgba(255, 255, 255, 0.08);   /* selected segment, chip, nav row */
+  --gs-indicator: #e3e4e8;                    /* tab underline, current-item marker */
+  --gs-track: rgba(255, 255, 255, 0.08);      /* progress track */
+  --gs-progress: #a2a5a9;                     /* neutral progress fill */
+  --gs-field: rgba(255, 255, 255, 0.02);      /* input fill */
+  --gs-overlay: rgba(8, 9, 10, 0.6);          /* modal scrim */
+
+  /* Accent: rare. Focus ring, prose links, checkbox ticks, data highlights. */
+  --gs-accent: #6366f1;
+  --gs-accent-light: #818cf8;
+  --gs-accent-soft: rgba(99, 102, 241, 0.16);
+  --gs-focus: #818cf8;
+  --gs-on-accent: #ffffff;
+
+  /* Primary button: a quiet tonal fill, one step brighter than secondaries.
+     At most one per region. It never glares like a white slab. */
+  --gs-primary-bg: #2b2e32;
+  --gs-primary-bg-hover: #34373c;
+  --gs-primary-bg-press: #26292c;
+  --gs-primary-text: #e6e7e9;
+
+  /* Semantic states (all at least 4.5:1 on bg). */
+  --gs-success: #4cb782;
+  --gs-warning: #e5a03a;
+  --gs-danger: #e5484d;
+  --gs-info: #818cf8;
+  --gs-success-soft: rgba(76, 183, 130, 0.14);
+  --gs-warning-soft: rgba(229, 160, 58, 0.14);
+  --gs-danger-soft: rgba(229, 72, 77, 0.14);
+  --gs-info-soft: rgba(129, 140, 248, 0.14);
+
+  /* Raw hues: charts, maps and app identity only. Never colour alone. */
+  --gs-blue: #0a84ff;
+  --gs-green: #30d158;
+  --gs-red: #ff3b30;
+  --gs-orange: #ff9f0a;
+  --gs-violet: #a78bfa;
+  --gs-teal: #5eead4;
+  --gs-pink: #ec4899;
+
+  /* Radii. */
+  --gs-radius-xs: 4px;                        /* badges, kbd, skeletons */
+  --gs-radius-sm: 8px;                        /* controls, nav rows, chips */
+  --gs-radius-md: 10px;                       /* menus, popovers, alerts, segmented track */
+  --gs-radius-lg: 12px;                       /* cards, dialogs */
+  --gs-radius-pill: 999px;                    /* avatars and status dots only */
+
+  /* Elevation: flat surfaces; shadows only on floating layers. */
+  --gs-shadow-sm: none;
+  --gs-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--gs-separator);
+
+  /* Spacing: 4px scale. */
+  --gs-space-1: 4px;
+  --gs-space-2: 8px;
+  --gs-space-3: 12px;
+  --gs-space-4: 16px;
+  --gs-space-5: 20px;
+  --gs-space-6: 24px;
+  --gs-space-8: 32px;
+  --gs-gutter: 12px;
+
+  /* Density: desktop-first. */
+  --gs-control-height-sm: 26px;              /* toolbars, filter rows, table actions */
+  --gs-control-height: 30px;                 /* default control */
+  --gs-control-height-lg: 32px;              /* a lone page CTA; the ceiling */
+  --gs-icon-button: 26px;
+  --gs-row-height: 30px;
+  --gs-appbar-height: 44px;
+
+  /* Motion. */
+  --gs-motion: 140ms;
+  --gs-motion-fast: 120ms;
+  --gs-ease: cubic-bezier(.2, 0, 0, 1);
+
+  /* Focus. */
+  --gs-focus-ring: 2px solid color-mix(in srgb, var(--gs-focus) 80%, transparent);
+  --gs-focus-offset: 2px;
+
+  /* Type roles: `font: var(--gs-type-x)`. Weights are 400, 500 and 600 only. */
+  --gs-weight-regular: 400;
+  --gs-weight-medium: 500;
+  --gs-weight-strong: 600;
+  --gs-type-overline: 500 10px/1.2 var(--gs-font-sans);      /* uppercase, 0.1em, tertiary */
+  --gs-type-meta: 400 11px/1.4 var(--gs-font-sans);          /* timestamps, column heads, hints */
+  --gs-type-ui: 400 12px/1.4 var(--gs-font-sans);            /* nav, tabs, cells, labels, chips */
+  --gs-type-control: 500 12px/1 var(--gs-font-sans);         /* button labels */
+  --gs-type-control-sm: 500 11.5px/1 var(--gs-font-sans);
+  --gs-type-body: 400 12.5px/1.5 var(--gs-font-sans);        /* prose, inputs */
+  --gs-type-row-title: 400 13px/1.35 var(--gs-font-sans);
+  --gs-type-card-title: 500 13px/1.3 var(--gs-font-sans);
+  --gs-type-heading: 500 14.5px/1.3 var(--gs-font-sans);
+  --gs-type-display: 500 17px/1.2 var(--gs-font-sans);       /* KPI figures */
+  --gs-type-page-title: 500 18px/1.2 var(--gs-font-sans);
+}
+
+:root[data-theme="light"],
+.gs-light {
+  color-scheme: light;
+
+  --gs-bg: #f7f7f8;
+  --gs-surface: #ffffff;
+  --gs-surface-raised: #ffffff;
+  --gs-surface-translucent: rgba(255, 255, 255, 0.86);
+  --gs-separator: #e4e5e7;
+  --gs-separator-strong: #d4d6d9;
+  --gs-separator-hover: #c3c6ca;
+
+  --gs-text: #1d1d1f;
+  --gs-text-soft: #3a3c40;
+  --gs-secondary: #62666c;
+  --gs-tertiary: #6b6f75;
+
+  --gs-fill: rgba(0, 0, 0, 0.04);
+  --gs-fill-strong: rgba(0, 0, 0, 0.07);
+  --gs-hover: rgba(0, 0, 0, 0.035);
+  --gs-press: rgba(0, 0, 0, 0.06);
+  --gs-selected: rgba(0, 0, 0, 0.07);
+  --gs-indicator: #1d1d1f;
+  --gs-track: rgba(0, 0, 0, 0.08);
+  --gs-progress: #62666c;
+  --gs-field: #ffffff;
+  --gs-overlay: rgba(16, 18, 19, 0.32);
+
+  --gs-accent-soft: rgba(91, 95, 224, 0.12);
+  --gs-focus: #5b5fe0;
+  --gs-info: #5b5fe0;
+
+  --gs-primary-bg: #e9eaec;
+  --gs-primary-bg-hover: #dfe0e3;
+  --gs-primary-bg-press: #d6d8db;
+  --gs-primary-text: #1d1d1f;
+
+  --gs-success: #18794e;
+  --gs-warning: #9a5b00;
+  --gs-danger: #c62a2f;
+  --gs-success-soft: rgba(24, 121, 78, 0.1);
+  --gs-warning-soft: rgba(154, 91, 0, 0.1);
+  --gs-danger-soft: rgba(198, 42, 47, 0.1);
+  --gs-info-soft: rgba(91, 95, 224, 0.1);
+
+  --gs-blue: #007aff;
+  --gs-green: #34c759;
+  --gs-orange: #ff9500;
+
+  --gs-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--gs-separator);
+
+  /* Aliases resolve where they are declared, so re-declare them here. */
+  --gs-focus-ring: 2px solid color-mix(in srgb, var(--gs-focus) 80%, transparent);
+}
+
+@media (pointer: coarse) {
+  :root {
+    --gs-control-height-sm: 36px;
+    --gs-control-height: 40px;
+    --gs-control-height-lg: 44px;
+    --gs-icon-button: 36px;
+    --gs-row-height: 40px;
+  }
+}
+
+/* ------------------------------------------------------------------ Base */
+
+@layer gs.base {
+  html {
+    background: var(--gs-bg);
+  }
+
+  body {
+    margin: 0;
+    background: var(--gs-bg);
+    color: var(--gs-text);
+    font: var(--gs-type-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--gs-accent-soft);
+  }
+
+  * {
+    scrollbar-color: var(--gs-separator-strong) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: var(--gs-radius-pill);
+    background: var(--gs-separator-strong) padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--gs-separator-hover) padding-box;
+  }
+
+  :focus-visible {
+    outline: var(--gs-focus-ring);
+    outline-offset: var(--gs-focus-offset);
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    accent-color: var(--gs-accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}
+
+/* ------------------------------------------------------------ Components */
+
+@layer gs.components {
+  /* App bar: the one header every app shares.
+     <header class="gs-appbar">
+       <a class="gs-brand" href="/">
+         <span class="gs-brand-mark">U</span>
+         <span class="gs-brand-copy">
+           <span class="gs-brand-title">UCC KPI</span>
+           <span class="gs-brand-subtitle">Analytics workspace</span>
+         </span>
+       </a>
+       <nav class="gs-appbar-center">…tabs…</nav>
+       <div class="gs-appbar-actions">…buttons…</div>
+     </header> */
+  .gs-appbar {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: var(--gs-space-3);
+    box-sizing: border-box;
+    min-height: var(--gs-appbar-height);
+    padding: 0 var(--gs-gutter);
+    border-bottom: 1px solid var(--gs-separator);
+    background: var(--gs-bg);
+    color: var(--gs-text);
+    font: var(--gs-type-ui);
+  }
+
+  .gs-appbar-center {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gs-space-2);
+    min-width: 0;
+  }
+
+  .gs-appbar-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--gs-space-2);
+    margin-left: auto;
+  }
+
+  .gs-brand {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+    border-radius: var(--gs-radius-sm);
+  }
+
+  .gs-brand-mark {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: auto;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+    overflow: hidden;
+    border: 1px solid var(--gs-separator);
+    border-radius: var(--gs-radius-sm);
+    background: var(--gs-surface-raised);
+    color: var(--gs-secondary);
+    font: 500 10.5px/1 var(--gs-font-sans);
+    letter-spacing: 0;
+    white-space: nowrap;
+    box-shadow: none;
+  }
+
+  img.gs-brand-mark {
+    width: 28px;
+    padding: 4px;
+    object-fit: contain;
+  }
+
+  .gs-brand-copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .gs-brand-title {
+    overflow: hidden;
+    color: var(--gs-text);
+    font: 500 13px/1.2 var(--gs-font-sans);
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gs-brand-subtitle {
+    overflow: hidden;
+    color: var(--gs-tertiary);
+    font: var(--gs-type-meta);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Buttons. Private custom properties let size and variant compose. */
+  .gs-btn {
+    --_h: var(--gs-control-height);
+    --_px: 12px;
+    --_bg: transparent;
+    --_bg-hover: var(--gs-hover);
+    --_bg-press: var(--gs-press);
+    --_fg: var(--gs-text);
+    --_bd: transparent;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-sizing: border-box;
+    min-height: var(--_h);
+    padding: 0 var(--_px);
+    border: 1px solid var(--_bd);
+    border-radius: var(--gs-radius-sm);
+    background: var(--_bg);
+    color: var(--_fg);
+    font: var(--gs-type-control);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background-color var(--gs-motion-fast) var(--gs-ease), border-color var(--gs-motion-fast) var(--gs-ease), color var(--gs-motion-fast) var(--gs-ease);
+  }
+
+  .gs-btn:hover:not(:disabled) { background: var(--_bg-hover); }
+  .gs-btn:active:not(:disabled) { background: var(--_bg-press); }
+  .gs-btn--primary { --_bg: var(--gs-primary-bg); --_bg-hover: var(--gs-primary-bg-hover); --_bg-press: var(--gs-primary-bg-press); --_fg: var(--gs-primary-text); --_bd: var(--gs-separator-strong); }
+  .gs-btn--secondary { --_bd: var(--gs-separator-strong); }
+  .gs-btn--secondary:hover:not(:disabled) { border-color: var(--gs-separator-hover); }
+  .gs-btn--ghost { --_fg: var(--gs-text-soft); }
+  .gs-btn--ghost:hover:not(:disabled) { color: var(--gs-text); }
+  .gs-btn--danger { --_fg: var(--gs-danger); --_bd: color-mix(in srgb, var(--gs-danger) 35%, transparent); --_bg-hover: var(--gs-danger-soft); --_bg-press: var(--gs-danger-soft); }
+  .gs-btn--sm { --_h: var(--gs-control-height-sm); --_px: 10px; gap: 4px; font: var(--gs-type-control-sm); }
+  .gs-btn--lg { --_h: var(--gs-control-height-lg); --_px: 14px; font-size: 13px; }
+  .gs-btn:disabled,
+  .gs-btn[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
+  .gs-btn[aria-busy="true"] { cursor: progress; }
+  .gs-btn svg { flex-shrink: 0; }
+
+  .gs-icon-btn {
+    --_h: var(--gs-icon-button);
+    --_px: 0;
+    --_fg: var(--gs-secondary);
+    width: var(--_h);
+    min-width: var(--_h);
+  }
+
+  .gs-icon-btn:hover:not(:disabled) { color: var(--gs-text); }
+
+  /* Form fields. */
+  .gs-field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .gs-label {
+    color: var(--gs-secondary);
+    font: var(--gs-type-meta);
+  }
+
+  .gs-input,
+  .gs-select,
+  .gs-textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--gs-control-height);
+    padding: 0 10px;
+    border: 1px solid var(--gs-separator-strong);
+    border-radius: var(--gs-radius-sm);
+    background: var(--gs-field);
+    color: var(--gs-text);
+    font: var(--gs-type-body);
+    transition: border-color var(--gs-motion-fast) var(--gs-ease), box-shadow var(--gs-motion-fast) var(--gs-ease);
+  }
+
+  .gs-textarea {
+    padding: 8px 10px;
+    line-height: 1.5;
+  }
+
+  .gs-input::placeholder,
+  .gs-textarea::placeholder {
+    color: var(--gs-tertiary);
+  }
+
+  .gs-input:hover,
+  .gs-select:hover,
+  .gs-textarea:hover {
+    border-color: var(--gs-separator-hover);
+  }
+
+  .gs-input:focus,
+  .gs-select:focus,
+  .gs-textarea:focus {
+    border-color: var(--gs-focus);
+    outline: none;
+    box-shadow: 0 0 0 1px var(--gs-focus);
+  }
+
+  .gs-input[aria-invalid="true"],
+  .gs-select[aria-invalid="true"],
+  .gs-textarea[aria-invalid="true"] {
+    border-color: var(--gs-danger);
+  }
+
+  /* Underline tabs: selected is text colour plus a 2px indicator. */
+  .gs-tabs {
+    display: flex;
+    align-items: stretch;
+    gap: var(--gs-space-6);
+    border-bottom: 1px solid var(--gs-separator);
+  }
+
+  .gs-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--gs-control-height);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--gs-secondary);
+    font: 400 12.5px/1 var(--gs-font-sans);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color var(--gs-motion-fast) var(--gs-ease);
+  }
+
+  .gs-tab:hover { color: var(--gs-text); }
+  .gs-tab:focus-visible { outline-offset: -2px; }
+
+  .gs-tab[aria-selected="true"],
+  .gs-tab[aria-current="page"],
+  .gs-tab[aria-current="true"],
+  .gs-tab.active,
+  .gs-tab.is-active {
+    color: var(--gs-text);
+  }
+
+  .gs-tab[aria-selected="true"]::after,
+  .gs-tab[aria-current="page"]::after,
+  .gs-tab[aria-current="true"]::after,
+  .gs-tab.active::after,
+  .gs-tab.is-active::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--gs-indicator);
+  }
+
+  /* Segmented control: 2–5 exclusive modes. */
+  .gs-segmented {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--gs-separator);
+    border-radius: var(--gs-radius-md);
+    background: var(--gs-field);
+  }
+
+  .gs-segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: calc(var(--gs-control-height-sm) - 4px);
+    padding: 0 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--gs-secondary);
+    font: var(--gs-type-ui);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--gs-motion-fast) var(--gs-ease), color var(--gs-motion-fast) var(--gs-ease);
+  }
+
+  .gs-segment:hover { background: var(--gs-hover); color: var(--gs-text); }
+
+  .gs-segment[aria-pressed="true"],
+  .gs-segment[aria-selected="true"],
+  .gs-segment.active,
+  .gs-segment.is-active {
+    background: var(--gs-selected);
+    color: var(--gs-text);
+  }
+
+  /* Chips: filters and multi-select toggles. */
+  .gs-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+    padding: 0 10px;
+    border: 1px solid var(--gs-separator-strong);
+    border-radius: var(--gs-radius-sm);
+    background: transparent;
+    color: var(--gs-secondary);
+    font: var(--gs-type-ui);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .gs-chip:hover { background: var(--gs-hover); color: var(--gs-text); }
+
+  .gs-chip[aria-pressed="true"],
+  .gs-chip.active,
+  .gs-chip.is-active {
+    border-color: transparent;
+    background: var(--gs-selected);
+    color: var(--gs-text);
+  }
+
+  /* Surfaces. */
+  .gs-panel {
+    background: var(--gs-surface);
+    color: var(--gs-text);
+  }
+
+  .gs-card {
+    min-width: 0;
+    padding: var(--gs-space-4);
+    border: 1px solid var(--gs-separator);
+    border-radius: var(--gs-radius-lg);
+    background: var(--gs-surface);
+    box-shadow: none;
+  }
+
+  .gs-card-title {
+    margin: 0;
+    color: var(--gs-text);
+    font: var(--gs-type-card-title);
+  }
+
+  .gs-popover {
+    border: 0;
+    border-radius: var(--gs-radius-md);
+    background: var(--gs-surface-raised);
+    color: var(--gs-text);
+    box-shadow: var(--gs-shadow-lg);
+  }
+
+  .gs-divider {
+    height: 1px;
+    margin: 0;
+    border: 0;
+    background: var(--gs-separator);
+  }
+
+  .gs-overline {
+    margin: 0;
+    color: var(--gs-tertiary);
+    font: var(--gs-type-overline);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .gs-meta {
+    color: var(--gs-secondary);
+    font: var(--gs-type-meta);
+  }
+
+  .gs-num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Badges: counts and short status. Pair tone with text, never colour alone. */
+  .gs-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 18px;
+    padding: 0 6px;
+    border-radius: var(--gs-radius-xs);
+    background: var(--gs-fill-strong);
+    color: var(--gs-secondary);
+    font: 500 11px/1 var(--gs-font-sans);
+    white-space: nowrap;
+  }
+
+  .gs-badge--success { background: var(--gs-success-soft); color: var(--gs-success); }
+  .gs-badge--warning { background: var(--gs-warning-soft); color: var(--gs-warning); }
+  .gs-badge--danger { background: var(--gs-danger-soft); color: var(--gs-danger); }
+  .gs-badge--info { background: var(--gs-info-soft); color: var(--gs-info); }
+
+  .gs-dot {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--gs-radius-pill);
+    background: var(--gs-tertiary);
+  }
+
+  .gs-dot--success { background: var(--gs-success); }
+  .gs-dot--warning { background: var(--gs-warning); }
+  .gs-dot--danger { background: var(--gs-danger); }
+
+  /* Tables: hairline rows, tabular numbers, quiet column heads. */
+  .gs-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--gs-text-soft);
+    font: var(--gs-type-ui);
+  }
+
+  .gs-table th {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gs-separator);
+    color: var(--gs-secondary);
+    font: var(--gs-type-meta);
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .gs-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gs-separator);
+  }
+
+  .gs-table tbody tr:hover td { background: var(--gs-hover); }
+
+  /* Progress. */
+  .gs-progress {
+    height: 4px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--gs-track);
+  }
+
+  .gs-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--gs-progress);
+  }
+
+  /* Empty state. */
+  .gs-empty {
+    display: grid;
+    gap: 4px;
+    padding: var(--gs-space-6) var(--gs-space-4);
+    color: var(--gs-secondary);
+    font: var(--gs-type-ui);
+    text-align: center;
+  }
+
+  .gs-empty strong {
+    color: var(--gs-text);
+    font-weight: 500;
+  }
+}
+
+/* ------------------------------------------- Map widgets (unlayered on purpose)
+   Vendor stylesheets are unlayered, so these skins must be too. Selectors are
+   one class deeper than the vendor defaults; app CSS can still override them. */
+
+.leaflet-container {
+  font: var(--gs-type-ui);
+}
+
+/* .leaflet-control raises these above vendor `.leaflet-touch .leaflet-bar`
+   (2px translucent black border), which loads later with equal weight. */
+.leaflet-container .leaflet-bar.leaflet-control,
+.leaflet-container .leaflet-control-layers.leaflet-control {
+  border: 1px solid var(--gs-separator-strong);
+  border-radius: var(--gs-radius-sm);
+  background: var(--gs-surface-raised);
+  background-clip: padding-box;
+  color: var(--gs-text);
+  box-shadow: none;
+}
+
+.leaflet-container .leaflet-control-layers-expanded.leaflet-control {
+  padding: 6px 10px 6px 6px;
+  border-radius: var(--gs-radius-md);
+  box-shadow: var(--gs-shadow-lg);
+}
+
+.leaflet-container .leaflet-control-layers-separator {
+  border-top-color: var(--gs-separator);
+}
+
+/* The vendor layers icon is dark artwork drawn for a white button. */
+:root:not([data-theme="light"]) .leaflet-container .leaflet-control-layers-toggle {
+  filter: invert(0.86);
+}
+
+.leaflet-container .leaflet-bar a {
+  border-bottom-color: var(--gs-separator);
+  background: var(--gs-surface-raised);
+  color: var(--gs-text-soft);
+  font-weight: 400;
+}
+
+.leaflet-container .leaflet-bar a.leaflet-disabled {
+  background: var(--gs-surface);
+  color: var(--gs-tertiary);
+}
+
+.leaflet-container .leaflet-bar a:hover {
+  background: var(--gs-surface);
+  color: var(--gs-text);
+}
+
+.leaflet-container .leaflet-control-attribution {
+  background: var(--gs-surface-translucent);
+  color: var(--gs-tertiary);
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--gs-secondary);
+}
+
+.leaflet-container .leaflet-popup-content-wrapper,
+.leaflet-container .leaflet-popup-tip {
+  background: var(--gs-surface-raised);
+  color: var(--gs-text);
+  box-shadow: var(--gs-shadow-lg);
+}
+
+.maplibregl-map .maplibregl-ctrl-group,
+.mapboxgl-map .mapboxgl-ctrl-group {
+  border: 1px solid var(--gs-separator-strong);
+  border-radius: var(--gs-radius-sm);
+  background: var(--gs-surface-raised);
+  box-shadow: none;
+}
+
+.maplibregl-map .maplibregl-ctrl-group button + button,
+.mapboxgl-map .mapboxgl-ctrl-group button + button {
+  border-top-color: var(--gs-separator);
+}
+
+.maplibregl-map .maplibregl-popup-content,
+.mapboxgl-map .mapboxgl-popup-content {
+  border-radius: var(--gs-radius-md);
+  background: var(--gs-surface-raised);
+  color: var(--gs-text);
+  box-shadow: var(--gs-shadow-lg);
+}

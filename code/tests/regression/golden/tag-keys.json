@@ -1,0 +1,138 @@
+{
+ "rows": [
+  {
+   "key": "name",
+   "nodes": 4,
+   "ways": 3,
+   "relations": 2,
+   "distinct_values": 9,
+   "count": 9
+  },
+  {
+   "key": "highway",
+   "nodes": 2,
+   "ways": 5,
+   "relations": 0,
+   "distinct_values": 6,
+   "count": 7
+  },
+  {
+   "key": "type",
+   "nodes": 0,
+   "ways": 0,
+   "relations": 4,
+   "distinct_values": 4,
+   "count": 4
+  },
+  {
+   "key": "barrier",
+   "nodes": 2,
+   "ways": 0,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 2
+  },
+  {
+   "key": "access",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "amenity",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "building",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "junction",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "landuse",
+   "nodes": 0,
+   "ways": 0,
+   "relations": 1,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "note",
+   "nodes": 0,
+   "ways": 0,
+   "relations": 1,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "place",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "ref",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "route",
+   "nodes": 0,
+   "ways": 0,
+   "relations": 1,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "route_master",
+   "nodes": 0,
+   "ways": 0,
+   "relations": 1,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "shelter",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 1
+  },
+  {
+   "key": "shop",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "distinct_values": 1,
+   "count": 1
+  }
+ ],
+ "total": 16,
+ "page": 1,
+ "pageSize": 30,
+ "tag": null,
+ "distribution": null,
+ "comparison": null
+}

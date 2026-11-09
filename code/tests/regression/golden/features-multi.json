@@ -1,0 +1,114 @@
+{
+ "type": "FeatureCollection",
+ "limited": false,
+ "features": [
+  {
+   "type": "Feature",
+   "id": "way/202",
+   "properties": {
+    "kind": "way",
+    "id": 202,
+    "label": "Rue de la Gare",
+    "tags": [
+     [
+      "highway",
+      "residential"
+     ]
+    ],
+    "value": "residential"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      5.93,
+      49.53
+     ],
+     [
+      5.94,
+      49.53
+     ],
+     [
+      5.95,
+      49.53
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "node/105",
+   "properties": {
+    "kind": "node",
+    "id": 105,
+    "label": null,
+    "tags": [
+     [
+      "barrier",
+      "gate"
+     ]
+    ],
+    "value": "gate"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     6,
+     49.57
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "node/107",
+   "properties": {
+    "kind": "node",
+    "id": 107,
+    "label": null,
+    "tags": [
+     [
+      "barrier",
+      "gate"
+     ]
+    ],
+    "value": "gate"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     5.933,
+     49.533
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "way/201",
+   "properties": {
+    "kind": "way",
+    "id": 201,
+    "label": "A1",
+    "tags": [
+     [
+      "highway",
+      "motorway"
+     ]
+    ],
+    "value": "motorway"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      5.95,
+      49.55
+     ],
+     [
+      6.05,
+      49.55
+     ]
+    ]
+   }
+  }
+ ]
+}

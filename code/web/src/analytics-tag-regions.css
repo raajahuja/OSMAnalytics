@@ -1,0 +1,76 @@
+.ax-tag-regions {
+  border-top: 1px solid var(--edge);
+}
+.ax-tag-regions-head {
+  padding: 11px 16px;
+}
+.ax-tag-regions-head h4 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 3px;
+  font: var(--gs-type-card-title);
+  letter-spacing: 0;
+}
+.ax-tag-regions-head h4 svg {
+  color: var(--accent);
+}
+.ax-tag-regions-head h4 code {
+  color: var(--gs-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+.ax-tag-regions-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.ax-tag-regions-scroll {
+  overflow: auto;
+  max-height: clamp(260px, 52dvh, 620px);
+}
+.ax-tag-regions-scroll:focus-visible {
+  outline: var(--gs-focus-ring);
+  outline-offset: -2px;
+}
+.ax-tag-regions thead th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  background: var(--gs-surface-raised);
+}
+.ax-tag-regions th:first-child,
+.ax-tag-regions td:first-child {
+  padding-inline-start: 16px;
+}
+.ax-tag-regions-bar {
+  width: 18%;
+  min-width: 90px;
+}
+.ax-tag-regions-bar i {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--gs-separator);
+}
+.ax-tag-regions-bar b {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.ax-tag-regions-top code {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 18ch;
+  vertical-align: bottom;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ax-tag-regions-top small {
+  margin-inline-start: 6px;
+  color: var(--gs-secondary);
+  font-variant-numeric: tabular-nums;
+}

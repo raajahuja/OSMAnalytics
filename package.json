@@ -1,0 +1,47 @@
+{
+  "name": "osm-analytics",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Explore and filter OpenStreetMap data for any country, on your own machine",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raajahuja/OSMAnalytics.git"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "setup": "node code/pipeline/setup.mjs",
+    "dev": "node code/server/index.mjs",
+    "build": "tsc --noEmit && vite build code/web",
+    "start": "NODE_ENV=production node code/server/index.mjs",
+    "test": "npm run test:py && node --experimental-strip-types --no-warnings --test --test-concurrency=4 code/tests/unit/*.test.mjs code/tests/smoke/*.test.mjs code/tests/integration/*.test.mjs code/tests/regression/*.test.mjs",
+    "analytics:download": "node code/pipeline/download-analytics.mjs",
+    "analytics:prepare": ".venv/bin/python code/pipeline/prepare-analytics.py",
+    "analytics:setup": "npm run analytics:download && npm run analytics:prepare",
+    "test:unit": "node --experimental-strip-types --no-warnings --test --test-concurrency=4 code/tests/unit/*.test.mjs",
+    "test:py": ".venv/bin/python -m unittest discover -s code/tests/unit -p \"*_test.py\"",
+    "test:smoke": "node --experimental-strip-types --no-warnings --test --test-concurrency=4 code/tests/smoke/*.test.mjs",
+    "test:integration": "node --experimental-strip-types --no-warnings --test --test-concurrency=4 code/tests/integration/*.test.mjs",
+    "test:regression": "node --experimental-strip-types --no-warnings --test --test-concurrency=4 code/tests/regression/*.test.mjs",
+    "test:visual": "playwright test",
+    "test:perf": "node --no-warnings code/tests/perf/benchmark.mjs",
+    "test:all": "npm run build && npm test && npm run test:visual"
+  },
+  "dependencies": {
+    "lucide-react": "^1.63.0",
+    "maplibre-gl": "6.17.0",
+    "pmtiles": "4.5.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

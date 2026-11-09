@@ -1,0 +1,26 @@
+{
+ "keyCount": 0,
+ "matchCount": 0,
+ "keys": [
+  [
+   "highway",
+   7
+  ],
+  [
+   "barrier",
+   2
+  ]
+ ],
+ "values": [
+  [
+   "highway",
+   "motorway",
+   1
+  ],
+  [
+   "highway",
+   "residential",
+   1
+  ]
+ ]
+}

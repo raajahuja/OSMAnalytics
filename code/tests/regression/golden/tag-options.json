@@ -1,0 +1,97 @@
+{
+ "rows": [
+  {
+   "value": "=SUM(A1)",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "node_id": 103,
+   "way_id": null,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "A1",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "node_id": null,
+   "way_id": 201,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "Café du Parc",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "node_id": 102,
+   "way_id": null,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "Fixture Forest",
+   "nodes": 0,
+   "ways": 0,
+   "relations": 1,
+   "node_id": null,
+   "way_id": null,
+   "relation_id": 301,
+   "count": 1
+  },
+  {
+   "value": "Fixtureville",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "node_id": 108,
+   "way_id": null,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "Line 1",
+   "nodes": 0,
+   "ways": 0,
+   "relations": 1,
+   "node_id": null,
+   "way_id": null,
+   "relation_id": 302,
+   "count": 1
+  },
+  {
+   "value": "Rue de la Gare",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "node_id": null,
+   "way_id": 202,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "Town Hall",
+   "nodes": 0,
+   "ways": 1,
+   "relations": 0,
+   "node_id": null,
+   "way_id": 204,
+   "relation_id": null,
+   "count": 1
+  },
+  {
+   "value": "Église Saint-Jean",
+   "nodes": 1,
+   "ways": 0,
+   "relations": 0,
+   "node_id": 101,
+   "way_id": null,
+   "relation_id": null,
+   "count": 1
+  }
+ ],
+ "total": 9,
+ "page": 1,
+ "pageSize": 30
+}

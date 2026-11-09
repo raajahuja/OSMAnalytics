@@ -1,0 +1,141 @@
+{
+ "key": "highway",
+ "focus": [
+  "motorway"
+ ],
+ "total": 1,
+ "regions": [
+  {
+   "id": "C01",
+   "name": "Canton 01",
+   "areaKm2": 80.484,
+   "count": 1,
+   "keyCount": 7,
+   "distinctValues": 6,
+   "regionObjects": 13,
+   "topValue": "service",
+   "topCount": 2
+  },
+  {
+   "id": "C02",
+   "name": "Canton 02",
+   "areaKm2": 80.483,
+   "count": 1,
+   "keyCount": 1,
+   "distinctValues": 1,
+   "regionObjects": 3,
+   "topValue": "motorway",
+   "topCount": 1
+  },
+  {
+   "id": "C03",
+   "name": "Canton 03",
+   "areaKm2": 80.483,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 1,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C04",
+   "name": "Canton 04",
+   "areaKm2": 80.483,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 0,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C05",
+   "name": "Canton 05",
+   "areaKm2": 80.321,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 0,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C06",
+   "name": "Canton 06",
+   "areaKm2": 80.32,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 0,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C07",
+   "name": "Canton 07",
+   "areaKm2": 80.32,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 0,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C08",
+   "name": "Canton 08",
+   "areaKm2": 80.32,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 0,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C09",
+   "name": "Canton 09",
+   "areaKm2": 80.157,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 0,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C10",
+   "name": "Canton 10",
+   "areaKm2": 80.157,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 0,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C11",
+   "name": "Canton 11",
+   "areaKm2": 80.157,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 0,
+   "topValue": null,
+   "topCount": 0
+  },
+  {
+   "id": "C12",
+   "name": "Canton 12",
+   "areaKm2": 80.157,
+   "count": 0,
+   "keyCount": 0,
+   "distinctValues": 0,
+   "regionObjects": 1,
+   "topValue": null,
+   "topCount": 0
+  }
+ ]
+}
