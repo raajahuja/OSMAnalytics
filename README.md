@@ -8,6 +8,8 @@ Explore and filter [OpenStreetMap](https://www.openstreetmap.org) data for any c
 - See how recently the data was edited, and where it has gone stale.
 - Export tables as CSV.
 
+![The map showing every road in Luxembourg](docs/screenshots/map.png)
+
 ## Install
 
 You need macOS or Linux, [Node.js](https://nodejs.org) 22.13 or newer, Python 3.10 or newer, and [tippecanoe](https://github.com/felt/tippecanoe). On macOS, install tippecanoe with `brew install tippecanoe`. On Linux, build it from source.
@@ -22,6 +24,8 @@ npm run dev
 
 Open **http://localhost:5173**, select **Countries**, and download and build a country. Geofabrik's country and region extracts are all available. Regions are found automatically from the OSM admin boundaries.
 
+![The Countries page, listing European countries with their download sizes and the memory, disk and time needed to build Austria](docs/screenshots/countries.png)
+
 ## What your machine needs
 
 Building needs more memory and disk than the download itself. The Countries page estimates memory, disk and time before you start, and tells you if a country won't fit.
@@ -35,17 +39,67 @@ The build holds data in memory, so very large countries need a lot of it, and th
 
 ## Using it
 
-Selecting a region draws its boundary, fits the map, and limits the filter options to what's available there. Values for the same key are alternatives. **Match any key** combines keys, and **Match all keys** requires every selected key.
+The screenshots below use Luxembourg.
 
-Click a highlighted point, line or area to inspect its tags and geometry. Dense views show up to 1,200 matches, and zooming in loads the matches in the new view.
+### Filter by tag
 
-**Table view** uses the same filters, and shows the value distribution and every exact value. Select a value in the chart or table to update the filters, or export the table as CSV.
+Choose any tag key and value from the filters above the map. Each one shows how many objects it matches. Dense views show up to 1,200 matches, and zooming in loads the matches in the new view.
+
+![The tag key filter open, listing keys with their object counts](docs/screenshots/filters.png)
+
+### Combine tags
+
+Select several keys and values. Values for the same key are alternatives. **Match any key** combines keys, and **Match all keys** requires every selected key.
+
+![The map showing objects tagged amenity or shop](docs/screenshots/multiple-keys.png)
+
+### Focus on a region
+
+Selecting a region draws its boundary, fits the map, and limits the filter options to what's available there.
+
+![The map zoomed to the canton of Echternach with its boundary drawn](docs/screenshots/region.png)
+
+### Inspect an object
+
+Click a highlighted point, line or area to see all its tags, its geometry, and when it was last edited, and to open the original on OpenStreetMap.
+
+![A street selected on the map, with its 17 tags listed beside it](docs/screenshots/object-details.png)
+
+### Go to a place
+
+Use **Go to location** to find a place in the data, or enter a latitude and longitude.
+
+![Place suggestions for the search text Esch](docs/screenshots/go-to-location.png)
+
+### Find what's nearby
 
 Right-click the map, or long-press on a touch screen, and choose **Query nearby features** to list every indexed object within 25 m to 2 km of a point.
 
-**Freshness** shows how recently the objects in the current filters were edited, using each object's version and last-edit time from the extract. The date is measured from the snapshot. A way's date changes when its tags or node list change, not when its nodes move.
+![A 250 metre circle in Luxembourg City, with nearby objects listed by distance](docs/screenshots/nearby.png)
+
+### See the numbers in a table
+
+**Table view** uses the same filters, and shows the value distribution and every exact value. Select a value in the chart or table to update the filters, or export the table as CSV.
+
+![Table view listing highway values with counts, percentages and a distribution chart](docs/screenshots/table.png)
+
+### Compare regions
+
+Further down **Table view**, every region is compared for the selected key. Select a region to focus on it.
+
+![A table comparing road counts, density and the most common value for each canton](docs/screenshots/by-region.png)
+
+### Check how fresh the data is
+
+**Freshness** shows how recently the objects in the current filters were edited, using each object's version and last-edit time from the extract. It maps stale areas and lists the most edited and longest untouched objects. The date is measured from the snapshot. A way's date changes when its tags or node list change, not when its nodes move.
+
+![The Freshness view with summary figures, a map of stale areas, edits by year and lists of objects](docs/screenshots/freshness.png)
+
+### Use satellite imagery
 
 **Satellite** imagery is available for Luxembourg only, from the [Geoportail 2025 aerial imagery](https://data.public.lu/en/datasets/orthophoto-officielle-du-grand-duche-de-luxembourg-edition-ete-2025/).
+
+![Roads drawn in bright blue over aerial imagery of Luxembourg City](docs/screenshots/satellite.jpg)
 
 ## Building from the command line
 

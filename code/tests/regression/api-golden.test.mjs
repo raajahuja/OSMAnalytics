@@ -37,6 +37,14 @@ after(async () => {
   if (output) removeFixture(output);
 });
 
+// Map projections differ in the last few digits from one platform to another.
+const rounded = (value) =>
+  JSON.parse(
+    JSON.stringify(value, (_, item) =>
+      typeof item === "number" ? Number(item.toFixed(9)) : item,
+    ),
+  );
+
 // Tied rows are ordered by hash, which is stable, so nothing needs masking.
 for (const [name, pathname] of Object.entries(cases)) {
   test("golden response: " + name, async () => {
@@ -52,6 +60,9 @@ for (const [name, pathname] of Object.entries(cases)) {
       fs.existsSync(file),
       "Missing golden file. Run UPDATE_GOLDEN=1 npm run test:regression",
     );
-    assert.deepEqual(body, JSON.parse(fs.readFileSync(file, "utf8")));
+    assert.deepEqual(
+      rounded(body),
+      rounded(JSON.parse(fs.readFileSync(file, "utf8"))),
+    );
   });
 }
